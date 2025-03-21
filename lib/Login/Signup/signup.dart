@@ -1,9 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/Login/Signup/signin.dart';
-class SignUpScreen extends StatelessWidget {
-  final _formKey = GlobalKey<FormState>();
+import 'package:flutter_application_1/services/auth_service.dart';
 
-  SignUpScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
+
+  @override
+  _SignUpScreenState createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends State<SignUpScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  final AuthService _authService = AuthService();
+
+  Future<void> _signUp() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      // Check if passwords match
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Passwords do not match")),
+        );
+        return;
+      }
+
+      // Call Firebase Authentication
+      User? user = await _authService.signUp(
+        _fullNameController.text.trim(),
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      if (user != null) {
+        // Navigate to Sign In Screen on Success
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Signup Successful! Please login.")),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => SignInScreen()),
+        );
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Signup Failed")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -33,90 +84,79 @@ class SignUpScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       TextFormField(
+                        controller: _fullNameController,
                         decoration: const InputDecoration(
-                          hintText: 'Full name',
+                          hintText: 'Full Name',
                           filled: true,
                           fillColor: Color(0xFFF5FCF9),
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16.0 * 1.5, vertical: 16.0),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                           border: OutlineInputBorder(
                             borderSide: BorderSide.none,
                             borderRadius: BorderRadius.all(Radius.circular(50)),
                           ),
                         ),
-                        onSaved: (name) {
-                          // Save it
-                        },
+                        validator: (value) =>
+                            value!.isEmpty ? 'Enter your full name' : null,
                       ),
                       const SizedBox(height: 16.0),
                       TextFormField(
+                        controller: _emailController,
                         decoration: const InputDecoration(
-                          hintText: 'Phone',
+                          hintText: 'Email',
                           filled: true,
                           fillColor: Color(0xFFF5FCF9),
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16.0 * 1.5, vertical: 16.0),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                           border: OutlineInputBorder(
                             borderSide: BorderSide.none,
                             borderRadius: BorderRadius.all(Radius.circular(50)),
                           ),
                         ),
-                        keyboardType: TextInputType.phone,
-                        onSaved: (phone) {
-                          // Save it
-                        },
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) =>
+                            value!.isEmpty ? 'Enter a valid email' : null,
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16.0),
                         child: TextFormField(
+                          controller: _passwordController,
                           decoration: const InputDecoration(
                             hintText: 'Password',
                             filled: true,
                             fillColor: Color(0xFFF5FCF9),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16.0 * 1.5, vertical: 16.0),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                             border: OutlineInputBorder(
                               borderSide: BorderSide.none,
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(50)),
+                              borderRadius: BorderRadius.all(Radius.circular(50)),
                             ),
                           ),
                           obscureText: true,
-                          onSaved: (passaword) {
-                            // Save it
-                          },
+                          validator: (value) =>
+                              value!.length < 6 ? 'Password must be at least 6 characters' : null,
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16.0),
                         child: TextFormField(
+                          controller: _confirmPasswordController,
                           decoration: const InputDecoration(
-                            hintText: 'Re-enter Password',
+                            hintText: 'Confirm Password',
                             filled: true,
                             fillColor: Color(0xFFF5FCF9),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16.0 * 1.5, vertical: 16.0),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                             border: OutlineInputBorder(
                               borderSide: BorderSide.none,
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(50)),
+                              borderRadius: BorderRadius.all(Radius.circular(50)),
                             ),
                           ),
                           obscureText: true,
-                          onSaved: (passaword) {
-                            // Save it
-                          },
+                          validator: (value) =>
+                              value!.isEmpty ? 'Confirm your password' : null,
                         ),
                       ),
-                      
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16.0),
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              _formKey.currentState!.save();
-                            }
-                          },
+                          onPressed: _signUp,
                           style: ElevatedButton.styleFrom(
                             elevation: 0,
                             backgroundColor: const Color(0xFF00BF6D),
@@ -130,12 +170,12 @@ class SignUpScreen extends StatelessWidget {
                       TextButton(
                         onPressed: () {
                           Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (context) => SignInScreen()),
-                            );
+                            context,
+                            MaterialPageRoute(builder: (context) => SignInScreen()),
+                          );
                         },
-                        child: Text.rich(
-                          const TextSpan(
+                        child: const Text.rich(
+                          TextSpan(
                             text: "Already have an account? ",
                             children: [
                               TextSpan(
@@ -144,14 +184,6 @@ class SignUpScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                          style:
-                              Theme.of(context).textTheme.bodyMedium!.copyWith(
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .bodyLarge!
-                                        .color!
-                                        .withOpacity(0.64),
-                                  ),
                         ),
                       ),
                     ],
@@ -165,16 +197,3 @@ class SignUpScreen extends StatelessWidget {
     );
   }
 }
-
-// only for demo
-List<DropdownMenuItem<String>>? countries = [
-  "Bangladesh",
-  "Switzerland",
-  'Canada',
-  'Japan',
-  'Germany',
-  'Australia',
-  'Sweden',
-].map<DropdownMenuItem<String>>((String value) {
-  return DropdownMenuItem<String>(value: value, child: Text(value));
-}).toList();
