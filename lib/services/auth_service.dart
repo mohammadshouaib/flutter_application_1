@@ -10,25 +10,28 @@ class AuthService {
 
   // 🔹 Sign Up Method
   Future<User?> signUp(String fullName, String email, String password) async {
-    try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+  try {
+    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
 
-      // Store user data in Firestore
-      await _firestore.collection('users').doc(userCredential.user!.uid).set({
-        'fullName': fullName,
-        'email': email,
-        'createdAt': DateTime.now(),
-      });
-
-      return userCredential.user;
-    } catch (e) {
-      print("Error: $e");
-      return null;
-    }
+    _firestore.collection('users').doc(userCredential.user!.uid).set({
+      'fullName': fullName,
+      'email': email,
+      'createdAt': DateTime.now(),
+    }).then((_) {
+      print("User data stored successfully");
+    }).catchError((error) {
+      print("Error storing user data: $error");
+    });
+    
+    return userCredential.user;
+  } catch (e) {
+    print("SignUp Error: $e");
+    return null;
   }
+}
 
   // Email & Password Sign-In
   Future<User?> signInWithEmail(String email, String password) async {
