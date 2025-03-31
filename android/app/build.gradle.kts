@@ -39,7 +39,7 @@ flutter {
 
 dependencies {
     // Firebase BoM (Bill of Materials)
-    implementation(platform("com.google.firebase:firebase-bom:33.10.0"))
+    implementation(platform("com.google.firebase:firebase-bom:33.11.0"))
 
     // Firebase Analytics
     implementation("com.google.firebase:firebase-analytics")

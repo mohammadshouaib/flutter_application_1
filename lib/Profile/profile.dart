@@ -1,8 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/Profile/editprofile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ProfileScreen extends StatelessWidget {
+
+Future<Map<String, dynamic>?> fetchUserData() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      return docSnapshot.data();
+    }
+    return null;
+  } catch (e) {
+    print("Error fetching user data: $e");
+    return null;
+  }
+}
+
+
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  Map<String, dynamic> userData = {};
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<Map<String, dynamic>?> _fetchUserData() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      return docSnapshot.data();
+    }
+    return null;
+  } catch (e) {
+    print("Error fetching user data: $e");
+    return null;
+  }
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -25,49 +79,75 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           children: [
-            const ProfilePic(image: "https://i.postimg.cc/cCsYDjvj/user-2.png"),
-            Text(
-              "Annette Black",
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const Divider(height: 16.0 * 2),
-            const Info(
-              infoKey: "User ID",
-              info: "@annette.me",
-            ),
-            const Info(
-              infoKey: "Location",
-              info: "New York, NYC",
-            ),
-            const Info(
-              infoKey: "Phone",
-              info: "(239) 555-0108",
-            ),
-            const Info(
-              infoKey: "Email Address",
-              info: "demo@mail.com",
-            ),
-            const SizedBox(height: 16.0),
-            Align(
-              alignment: Alignment.centerRight,
-              child: SizedBox(
-                width: 160,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00BF6D),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 48),
-                    shape: const StadiumBorder(),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => EditProfileScreen()),
-                  );
-                  },
-                  child: const Text("Edit profile"),
-                ),
-              ),
+            FutureBuilder<Map<String, dynamic>?>(
+              future: fetchUserData(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                }
+                
+                if (!snapshot.hasData || snapshot.data == null) {
+                  return const Text("No user data found");
+                }
+                
+                final userData = snapshot.data!;
+                
+                return Column(
+                  children: [
+                    const ProfilePic(image: "https://i.postimg.cc/cCsYDjvj/user-2.png"),
+                    Text(
+                      userData['fullName'] ?? "Annette Black", // Fallback if null
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const Divider(height: 16.0 * 2),
+                    Info(
+                      infoKey: "User ID",
+                      info: "@${userData['email']?.split('@').first ?? "annette.me"}",
+                    ),
+                    Info(
+                      infoKey: "Location",
+                      info: (userData['address'] ?? 'Empty'), // You might want to add this to Firestore
+                    ),
+                    Info(
+                      infoKey: "Phone",
+                      info: userData['phone'] ?? "(239) 555-0108",
+                    ),
+                    Info(
+                      infoKey: "Email Address",
+                      info: userData['email'] ?? "demo@mail.com",
+                    ),
+                    const SizedBox(height: 16.0),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: SizedBox(
+                        width: 160,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00BF6D),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: const StadiumBorder(),
+                          ),
+                          onPressed: () async {
+                            final shouldRefresh = await Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => EditProfileScreen(userData: userData),
+                              ),
+                            );
+                            
+                            if (shouldRefresh == true) {
+                              // Refresh your profile data here
+                              setState(() {});
+                            }
+                          },
+                          child: const Text("Edit profile"),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),

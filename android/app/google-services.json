@@ -1,36 +1,26 @@
 {
   "project_info": {
-    "project_number": "726927842583",
-    "project_id": "runningapp-f192f",
-    "storage_bucket": "runningapp-f192f.firebasestorage.app"
+    "project_number": "554544378570",
+    "project_id": "runningapp-57051",
+    "storage_bucket": "runningapp-57051.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:726927842583:android:8ddc5bb55b7dabb2d3eb52",
+        "mobilesdk_app_id": "1:554544378570:android:2ee26b687994c02538fa33",
         "android_client_info": {
           "package_name": "com.example.flutter_application_1"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "726927842583-r6abek10gad2kso4t5qjm5hm782j7jrk.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAA0DlJPg9yZpe0XcKLSPZ_vsP3wJMZSFY"
+          "current_key": "AIzaSyA7Q-SqGfON00rAUCgX7srZw0Sr8K7ciCQ"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "726927842583-r6abek10gad2kso4t5qjm5hm782j7jrk.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
