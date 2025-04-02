@@ -1,9 +1,27 @@
 import 'package:flutter/material.dart';
 
-class ChangePasswordScreen extends StatelessWidget {
-  final _formKey = GlobalKey<FormState>();
+import 'package:flutter_application_1/services/forgot_password_service.dart';
 
-  ChangePasswordScreen({super.key});
+class ChangePasswordScreen extends StatefulWidget {
+  final TextEditingController emailController;
+
+  ChangePasswordScreen({super.key, required this.emailController});
+
+  @override
+  _ChangePasswordScreenState createState() => _ChangePasswordScreenState();
+}
+
+class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  final ForgotPasswordService forgotPasswordService = ForgotPasswordService();
+  bool _isLoading = false;
+
+  Future<void> _changePassword() async {
+    forgotPasswordService.sendPasswordResetEmail(widget.emailController.text);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -16,87 +34,69 @@ class ChangePasswordScreen extends StatelessWidget {
             child: Column(
               children: [
                 TextFormField(
+                  controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    hintText: 'Password',
+                    hintText: 'New Password',
                     filled: true,
                     fillColor: Color(0xFFF5FCF9),
-                    contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16.0 * 1.5, vertical: 16.0),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                     border: OutlineInputBorder(
                       borderSide: BorderSide.none,
                       borderRadius: BorderRadius.all(Radius.circular(50)),
                     ),
                   ),
-                  onSaved: (passaword) {
-                    // Save it
+                  validator: (value) {
+                    if (value == null || value.length < 6) {
+                      return "Password must be at least 6 characters.";
+                    }
+                    return null;
                   },
-                  onChanged: (value) {},
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: TextFormField(
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      hintText: ' Confirm Password',
-                      filled: true,
-                      fillColor: Color(0xFFF5FCF9),
-                      contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16.0 * 1.5, vertical: 16.0),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide.none,
-                        borderRadius: BorderRadius.all(Radius.circular(50)),
-                      ),
+                const SizedBox(height: 16.0),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Confirm Password',
+                    filled: true,
+                    fillColor: Color(0xFFF5FCF9),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.all(Radius.circular(50)),
                     ),
-                    onSaved: (passaword) {
-                      // Save it
-                    },
                   ),
+                  validator: (value) {
+                    if (value != _passwordController.text) {
+                      return "Passwords do not match.";
+                    }
+                    return null;
+                  },
                 ),
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                _formKey.currentState!.save();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              elevation: 0,
-              backgroundColor: const Color(0xFF00BF6D),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 48),
-              shape: const StadiumBorder(),
-            ),
-            child: const Text("Change Password"),
-          ),
-          // TextButton(
-          //   onPressed: () {},
-          //   child: Text.rich(
-          //     TextSpan(
-          //       text: "Already have an account? ",
-          //       children: [
-          //         TextSpan(
-          //           text: "Sign in",
-          //           style: TextStyle(color: Theme.of(context).primaryColor),
-          //         ),
-          //       ],
-          //     ),
-          //     style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-          //           color: Theme.of(context)
-          //               .textTheme
-          //               .bodyLarge!
-          //               .color!
-          //               .withOpacity(0.64),
-          //         ),
-          //   ),
-          // ),
+          const SizedBox(height: 16.0),
+          _isLoading
+              ? const CircularProgressIndicator()
+              : ElevatedButton(
+                  onPressed: _changePassword,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: const Color(0xFF00BF6D),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text("Change Password"),
+                ),
         ],
       ),
     );
   }
 }
+
 
 class LogoWithTitle extends StatelessWidget {
   final String title, subText;

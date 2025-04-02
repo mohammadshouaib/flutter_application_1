@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/Login/Signup/otp.dart';
+import 'package:flutter_application_1/Services/forgot_password_service.dart';
 
 class ForgotPasswordScreen extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();
+  TextEditingController emailController = TextEditingController();
+  final ForgotPasswordService forgotPasswordService = ForgotPasswordService();
+
 
   ForgotPasswordScreen({super.key});
   @override
@@ -19,8 +23,9 @@ class ForgotPasswordScreen extends StatelessWidget {
             child: Form(
               key: _formKey,
               child: TextFormField(
+                controller: emailController,  // Use the controller
                 decoration: const InputDecoration(
-                  hintText: 'Phone',
+                  hintText: 'Email',
                   filled: true,
                   fillColor: Color(0xFFF5FCF9),
                   contentPadding: EdgeInsets.symmetric(
@@ -30,23 +35,29 @@ class ForgotPasswordScreen extends StatelessWidget {
                     borderRadius: BorderRadius.all(Radius.circular(50)),
                   ),
                 ),
-                keyboardType: TextInputType.phone,
-                onSaved: (phone) {
-                  // Save it
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter an email';
+                  }
+                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                    return 'Enter a valid email';
+                  }
+                  return null;
                 },
               ),
             ),
           ),
           ElevatedButton(
             onPressed: () {
+              forgotPasswordService.sendOtpToEmail(emailController.text);
               if (_formKey.currentState!.validate()) {
                 _formKey.currentState!.save();
                 Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => VerificationScreen()),
+                              MaterialPageRoute(builder: (context) => VerificationScreen(emailController: emailController,)),
                             );
                 }
-              
             },
             style: ElevatedButton.styleFrom(
               elevation: 0,
