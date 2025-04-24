@@ -16,7 +16,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _fullNameController;
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
-  late final TextEditingController _addressController;
+  late final TextEditingController _locationController;
+  
   
   final _formKey = GlobalKey<FormState>();
   bool _isUpdating = false;
@@ -27,7 +28,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _fullNameController = TextEditingController(text: widget.userData['fullName']);
     _emailController = TextEditingController(text: widget.userData['email']);
     _phoneController = TextEditingController(text: widget.userData['phone']);
-    _addressController = TextEditingController(
+    _locationController = TextEditingController(
       text: widget.userData['address'] ?? 'Empty'
     );
   }
@@ -37,7 +38,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _addressController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -55,7 +56,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             'fullName': _fullNameController.text,
             'email': _emailController.text,
             'phone': _phoneController.text,
-            'address': _addressController.text,
+            'address': _locationController.text,
             'updatedAt': DateTime.now(),
           });
 
@@ -153,9 +154,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                   ),
                   UserInfoEditField(
-                    text: "Address",
+                    text: "Location",
                     child: TextFormField(
-                      controller: _addressController,
+                      controller: _locationController,
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: const Color(0xFF00BF6D).withOpacity(0.05),
@@ -171,44 +172,58 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
               const SizedBox(height: 16.0),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  SizedBox(
-                    width: 120,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context)
-                            .textTheme
-                            .bodyLarge!
-                            .color!
-                            .withOpacity(0.08),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: const StadiumBorder(),
-                      ),
-                      child: const Text("Cancel"),
+              Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Calculate button width based on available space
+                        final availableWidth = constraints.maxWidth;
+                        final buttonWidth = (availableWidth - 12) / 2; // Subtract spacing
+                        
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            // Reset Password Button
+                            SizedBox(
+                              width: buttonWidth,
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF00BF6D),
+                                  side: const BorderSide(color: Color(0xFF00BF6D)),
+                                  minimumSize: const Size(double.infinity, 48),
+                                  shape: const StadiumBorder(),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
+                                onPressed: () {Navigator.pop(context);
+                                },
+                                child: const Text("Cancel"),
+                              ),
+                            ),
+                            
+                            const SizedBox(width: 12),
+                            
+                            // Edit Profile Button
+                            SizedBox(
+                              width: buttonWidth,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00BF6D),
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(double.infinity, 48),
+                                  shape: const StadiumBorder(),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
+                                onPressed: _isUpdating ? null : _updateProfile,
+                                child: _isUpdating
+                                    ? const CircularProgressIndicator(color: Colors.white)
+                                    : const Text("Save Update"),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(width: 16.0),
-                  SizedBox(
-                    width: 160,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00BF6D),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: const StadiumBorder(),
-                      ),
-                      onPressed: _isUpdating ? null : _updateProfile,
-                      child: _isUpdating
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text("Save Update"),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),

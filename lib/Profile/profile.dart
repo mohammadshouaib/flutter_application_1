@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/Login/Signup/resetpass.dart';
+import 'package:flutter_application_1/Profile/changePassword.dart';
 import 'package:flutter_application_1/Profile/editprofile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -145,7 +146,7 @@ Widget build(BuildContext context) {
                                   await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => ResetPasswordScreen(
+                                      builder: (context) => ChangePasswordScreen(
                                         email: userData['email'],
                                       ),
                                     ),
