@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_application_1/Login/Signup/changepass.dart';
+import 'package:flutter_application_1/Login/Signup/resetpass.dart';
 import 'package:flutter_application_1/Services/forgot_password_service.dart'; // Import your service
 
 
@@ -95,9 +95,9 @@ class _OtpFormState extends State<OtpForm> {
     try {
       bool isVerified = await forgotPasswordService.verifyOtp(widget.emailController.text, otp);
       if (isVerified) {
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => ChangePasswordScreen(emailController: widget.emailController)),
+          MaterialPageRoute(builder: (context) => ResetPasswordScreen(email: widget.emailController.text.toString())),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -113,94 +113,94 @@ class _OtpFormState extends State<OtpForm> {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Form(
-    key: _formKey,
-    child: Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Flexible(
-              child: OtpTextFormField(
-                focusNode: _pin1Node,
-                onChanged: (value) {
-                  otp1 = value;
-                  if (value.length == 1) _pin2Node.requestFocus();
-                },
-                autofocus: true,
-              ),
-            ),
-            const SizedBox(width: 8.0),
-            Flexible(
-              child: OtpTextFormField(
-                focusNode: _pin2Node,
-                onChanged: (value) {
-                  otp2 = value;
-                  if (value.length == 1) _pin3Node.requestFocus();
-                },
-              ),
-            ),
-            const SizedBox(width: 8.0),
-            Flexible(
-              child: OtpTextFormField(
-                focusNode: _pin3Node,
-                onChanged: (value) {
-                  otp3 = value;
-                  if (value.length == 1) _pin4Node.requestFocus();
-                },
-              ),
-            ),
-            const SizedBox(width: 8.0),
-            Flexible(
-              child: OtpTextFormField(
-                focusNode: _pin4Node,
-                onChanged: (value) {
-                  otp4 = value;
-                  if (value.length == 1) _pin5Node.requestFocus();
-                },
-              ),
-            ),
-            const SizedBox(width: 8.0),
-            Flexible(
-              child: OtpTextFormField(
-                focusNode: _pin5Node,
-                onChanged: (value) {
-                  otp5 = value;
-                  if (value.length == 1) _pin6Node.requestFocus();
-                },
-              ),
-            ),
-            const SizedBox(width: 8.0),
-            Flexible(
-              child: OtpTextFormField(
-                focusNode: _pin6Node,
-                onChanged: (value) {
-                  otp6 = value;
-                  if (value.length == 1) _pin7Node.requestFocus();
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24.0),
-        _isLoading
-            ? const CircularProgressIndicator()
-            : ElevatedButton(
-                onPressed: _verifyOtp,
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  backgroundColor: const Color(0xFF00BF6D),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: const StadiumBorder(),
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: OtpTextFormField(
+                  focusNode: _pin1Node,
+                  onChanged: (value) {
+                    otp1 = value;
+                    if (value.length == 1) _pin2Node.requestFocus();
+                  },
+                  autofocus: true,
                 ),
-                child: const Text("Next"),
               ),
-      ],
-    ),
-  );
-}
+              const SizedBox(width: 8.0),
+              Flexible(
+                child: OtpTextFormField(
+                  focusNode: _pin2Node,
+                  onChanged: (value) {
+                    otp2 = value;
+                    if (value.length == 1) _pin3Node.requestFocus();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Flexible(
+                child: OtpTextFormField(
+                  focusNode: _pin3Node,
+                  onChanged: (value) {
+                    otp3 = value;
+                    if (value.length == 1) _pin4Node.requestFocus();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Flexible(
+                child: OtpTextFormField(
+                  focusNode: _pin4Node,
+                  onChanged: (value) {
+                    otp4 = value;
+                    if (value.length == 1) _pin5Node.requestFocus();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Flexible(
+                child: OtpTextFormField(
+                  focusNode: _pin5Node,
+                  onChanged: (value) {
+                    otp5 = value;
+                    if (value.length == 1) _pin6Node.requestFocus();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Flexible(
+                child: OtpTextFormField(
+                  focusNode: _pin6Node,
+                  onChanged: (value) {
+                    otp6 = value;
+                    if (value.length == 1) _pin7Node.requestFocus();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24.0),
+          _isLoading
+              ? const CircularProgressIndicator()
+              : ElevatedButton(
+                  onPressed: _verifyOtp,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: const Color(0xFF00BF6D),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text("Next"),
+                ),
+        ],
+      ),
+    );
+  }
 }
 
 const InputDecoration otpInputDecoration = InputDecoration(
@@ -230,7 +230,7 @@ class OtpTextFormField extends StatelessWidget {
       onChanged: onChanged,
       onSaved: onSaved,
       autofocus: autofocus,
-      obscureText: true,
+      obscureText: false,
       inputFormatters: [
         FilteringTextInputFormatter.digitsOnly,
         LengthLimitingTextInputFormatter(1),

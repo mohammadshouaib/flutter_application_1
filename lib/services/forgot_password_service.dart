@@ -40,14 +40,14 @@ class ForgotPasswordService {
 
 
 
-Future<void> sendPasswordResetEmail(String email) async {
-  try {
-    await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-    print("Password reset email sent.");
-  } on FirebaseAuthException catch (e) {
-    print("Error: ${e.message}");
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      print("Password reset email sent.");
+    } on FirebaseAuthException catch (e) {
+      print("Error: ${e.message}");
+    }
   }
-}
 
 
   String _generateOtp() {

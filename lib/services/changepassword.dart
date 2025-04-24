@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-
 import 'package:flutter_application_1/services/forgot_password_service.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 class ChangePasswordScreen extends StatefulWidget {
-  final TextEditingController emailController;
+  final String email;
 
-  ChangePasswordScreen({super.key, required this.emailController});
+  ChangePasswordScreen({super.key, required this.email});
 
   @override
   _ChangePasswordScreenState createState() => _ChangePasswordScreenState();
@@ -19,13 +18,41 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _isLoading = false;
 
   Future<void> _changePassword() async {
-    forgotPasswordService.sendPasswordResetEmail(widget.emailController.text);
+    forgotPasswordService.sendPasswordResetEmail(widget.email);
+  }
+  
+
+  Future<bool> verifyUserPassword(String password) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || user.email == null) return false;
+      
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+      
+      await user.reauthenticateWithCredential(credential);
+      return true; // Password is correct
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password') {
+        return false; // Password is incorrect
+      }
+      rethrow; // Other errors like network issues
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+      centerTitle: false,
+      elevation: 0,
+      backgroundColor: const Color(0xFF00BF6D),
+      foregroundColor: Colors.white,
+      title: const Text("Profile"),
+    ),
       body: LogoWithTitle(
         title: "Change Password",
         children: [
@@ -33,6 +60,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             key: _formKey,
             child: Column(
               children: [
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Current Password',
+                    filled: true,
+                    fillColor: Color(0xFFF5FCF9),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.all(Radius.circular(50)),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value==null) {
+                      return "Incorrect Password";
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16.0),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
@@ -115,11 +163,11 @@ class LogoWithTitle extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
             children: [
+              // Image.network(
+              //   "https://i.postimg.cc/nz0YBQcH/Logo-light.png",
+              //   height: 100,
+              // ),
               SizedBox(height: constraints.maxHeight * 0.1),
-              Image.network(
-                "https://i.postimg.cc/nz0YBQcH/Logo-light.png",
-                height: 100,
-              ),
               SizedBox(
                 height: constraints.maxHeight * 0.1,
                 width: double.infinity,
@@ -131,6 +179,7 @@ class LogoWithTitle extends StatelessWidget {
                     .headlineSmall!
                     .copyWith(fontWeight: FontWeight.bold),
               ),
+              
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
                 child: Text(
@@ -154,3 +203,13 @@ class LogoWithTitle extends StatelessWidget {
     );
   }
 }
+
+
+Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      print("Password reset email sent.");
+    } on FirebaseAuthException catch (e) {
+      print("Error: ${e.message}");
+    }
+  }
