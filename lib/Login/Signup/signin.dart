@@ -165,6 +165,7 @@ import 'package:flutter_application_1/Login/Signup/forgotpassword.dart';
 import 'package:flutter_application_1/Login/Signup/signup.dart';
 import 'package:flutter_application_1/Profile/profile.dart';
 import 'package:flutter_application_1/services/auth_service.dart';
+import 'package:flutter_application_1/Pages/MainPage.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -193,7 +194,7 @@ class _SignInScreenState extends State<SignInScreen> {
         // Navigate to Profile Screen on Success
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => ProfileScreen()),
+          MaterialPageRoute(builder: (context) => MainNavigationPage()),
         );
       } else {
         // Show error message

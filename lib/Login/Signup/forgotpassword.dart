@@ -1,57 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/Login/Signup/otp.dart';
 import 'package:flutter_application_1/Services/forgot_password_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 
 class ForgotPasswordScreen extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();
   TextEditingController emailController = TextEditingController();
   final ForgotPasswordService forgotPasswordService = ForgotPasswordService();
 
-  
-Future<bool> isEmailRegisteredInFirestore(String email) async {
-  final normalizedEmail = email.toLowerCase().trim();
-  print(' Searching for exact email: "$normalizedEmail"');
-
-  try {
-    final query = FirebaseFirestore.instance
-        .collection('users')
-        .where('email', isEqualTo: normalizedEmail)
-        .limit(1);
-
-    
-    final snapshot = await query.get();
-
-    if (snapshot.docs.isNotEmpty) {
-      final doc = snapshot.docs.first;
-      print('Found matching document:');
-      print('   Document ID: ${doc.id}');
-      print('   Stored email: "${doc.data()['email']}"');
-      print('   Type: ${doc.data()['email'].runtimeType}');
-    } else {
-      print('No matching documents found');
-      // Check for hidden characters
-      print('🔠 Email character codes:');
-      normalizedEmail.runes.forEach((c) => print('   ${String.fromCharCode(c)} (U+${c.toRadixString(16).padLeft(4, '0')})'));
-    }
-
-    return snapshot.docs.isNotEmpty;
-  } catch (e) {
-    print(' Error: $e');
-    return false;
-  }
-}
-
-  Future<bool> isEmailRegistered(String email) async {
-  // Check Auth first
-  // final authResult = await isEmailRegisteredInAuth(email);
-  // if (authResult) return true;
-  
-  // If not in Auth, check Firestore
-  return await isEmailRegisteredInFirestore(email);
-}
 
   ForgotPasswordScreen({super.key});
   @override
@@ -61,7 +16,7 @@ Future<bool> isEmailRegisteredInFirestore(String email) async {
       body: LogoWithTitle(
         title: 'Forgot Password',
         subText:
-            "Enter the email address associated with your account.",
+            "Integer quis dictum tellus, a auctorlorem. Cras in biandit leo suspendiss.",
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -94,28 +49,15 @@ Future<bool> isEmailRegisteredInFirestore(String email) async {
             ),
           ),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: () {
+              forgotPasswordService.sendOtpToEmail(emailController.text);
               if (_formKey.currentState!.validate()) {
-                // Form is valid, now do async check
-                final email = emailController.text.trim();
-                final exists = await isEmailRegistered(email);
-                
-                if (exists) {
-                  print("ALOOOO??");
-                  forgotPasswordService.sendOtpToEmail(emailController.text);
-                  if (_formKey.currentState!.validate()) {
-                    _formKey.currentState!.save();
-                    Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => VerificationScreen(emailController: emailController,)),
-                                );
-                    }
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('No account found with this email')),
-                  );
+                _formKey.currentState!.save();
+                Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => VerificationScreen(emailController: emailController,)),
+                            );
                 }
-              }
             },
             style: ElevatedButton.styleFrom(
               elevation: 0,
