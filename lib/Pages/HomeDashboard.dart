@@ -80,7 +80,7 @@ class _HomePageState extends State<HomePage> {
               _buildRouteSuggestions(),
               
               // Footer navigation
-              _buildFooterNavigation(),
+              // _buildFooterNavigation(),
             ],
           ),
         ),
@@ -359,6 +359,7 @@ class _HomePageState extends State<HomePage> {
           _buildFooterButton(Icons.groups, "Clans"),
           _buildFooterButton(Icons.fitness_center, "Training"),
           _buildFooterButton(Icons.settings, "More"),
+          // Icons.person
         ],
       ),
     );
