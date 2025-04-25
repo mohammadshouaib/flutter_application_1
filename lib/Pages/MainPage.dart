@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'GroupCompetitionPage.dart';
 import 'HomeDashboard.dart';
 import 'RouteRecommendationsPage.dart';
-import 'TrainingPlansPage.dart';
+import 'TrainingPage/TrainingPlansPage.dart';
 import 'package:flutter_application_1/Profile/profile.dart';
 
 class MyApp extends StatelessWidget {
@@ -70,3 +70,4 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     );
   }
 }
+
