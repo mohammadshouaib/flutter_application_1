@@ -1,22 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-
-
-
-class RouteRecommendationsPage extends StatelessWidget {
-  const RouteRecommendationsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'RunRoute',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const RouteFeedPage(),
-    );
-  }
-}
 
 class RouteFeedPage extends StatefulWidget {
   const RouteFeedPage({super.key});
@@ -26,126 +11,76 @@ class RouteFeedPage extends StatefulWidget {
 }
 
 class _RouteFeedPageState extends State<RouteFeedPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final  _auth = FirebaseAuth.instance;
   String _selectedTerrain = 'All';
-  String _selectedDistance = 'All';
-  String _selectedDifficulty = 'All';
-  String _selectedSort = 'Popular';
+  String? _currentUserId;
 
-  final List<Route> _routes = [
-    Route(
-      name: "Central Park Loop",
-      creator: "Jane Runner",
-      distance: 5.2,
-      difficulty: "Moderate",
-      terrain: "Trail",
-      rating: 4.7,
-      reviewCount: 128,
-      safetyRating: 4.5,
-      isWellLit: true,
-      hasLowTraffic: true,
-      imageUrl: "https://example.com/central-park.jpg",
-    ),
-    Route(
-      name: "Downtown Dash",
-      creator: "Mike Jogger",
-      distance: 3.8,
-      difficulty: "Easy",
-      terrain: "Urban",
-      rating: 4.2,
-      reviewCount: 87,
-      safetyRating: 3.8,
-      isWellLit: true,
-      hasLowTraffic: false,
-      imageUrl: "https://example.com/downtown.jpg",
-    ),
-    Route(
-      name: "River Trail",
-      creator: "Sarah Marathon",
-      distance: 8.5,
-      difficulty: "Hard",
-      terrain: "Trail",
-      rating: 4.9,
-      reviewCount: 56,
-      safetyRating: 4.7,
-      isWellLit: false,
-      hasLowTraffic: true,
-      imageUrl: "https://example.com/river-trail.jpg",
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _currentUserId = _auth.currentUser?.uid;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Discover Routes'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // Implement search functionality
-            },
-          ),
-        ],
+        title: const Text('Running Routes'),
       ),
       body: Column(
         children: [
-          // Location and filter section
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      "New York, NY",
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      FilterChip(
-                        label: const Text("Terrain"),
-                        selected: _selectedTerrain != 'All',
-                        onSelected: (selected) => _showTerrainFilter(),
-                      ),
-                      const SizedBox(width: 4),
-                      FilterChip(
-                        label: const Text("Distance"),
-                        selected: _selectedDistance != 'All',
-                        onSelected: (selected) => _showDistanceFilter(),
-                      ),
-                      const SizedBox(width: 4),
-                      FilterChip(
-                        label: const Text("Difficulty"),
-                        selected: _selectedDifficulty != 'All',
-                        onSelected: (selected) => _showDifficultyFilter(),
-                      ),
-                      const SizedBox(width: 4),
-                      FilterChip(
-                        label: const Text("Sort"),
-                        selected: _selectedSort != 'Popular',
-                        onSelected: (selected) => _showSortFilter(),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Terrain filter chips
+          _buildTerrainFilter(),
           
-          // Routes list
+          // StreamBuilder to fetch and display routes
           Expanded(
-            child: ListView.builder(
-              itemCount: _routes.length,
-              itemBuilder: (context, index) {
-                return _buildRouteCard(_routes[index]);
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _selectedTerrain == 'All'
+                  ? _firestore.collection('routes').snapshots()
+                  : _firestore.collection('routes')
+                      .where('terrain', isEqualTo: _selectedTerrain)
+                      .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No routes found'));
+                }
+
+                // Convert Firestore docs to Route objects
+                final routes = snapshot.data!.docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return Route(
+                    id: doc.id,
+                    likeCount: data["likeCount"],
+                    likedBy: data["likedBy"],
+                    name: data['name'] ?? 'Unnamed Route',
+                    creator: data['creator'] ?? 'Unknown',
+                    distance: (data['distance'] ?? 0).toDouble(),
+                    difficulty: data['difficulty'] ?? 'Medium',
+                    terrain: data['terrain'] ?? 'Mixed',
+                    rating: (data['rating'] ?? 0).toDouble(),
+                    reviewCount: data['reviewCount'] ?? 0,
+                    safetyRating: (data['safetyRating'] ?? 0).toDouble(),
+                    isWellLit: data['isWellLit'] ?? false,
+                    hasLowTraffic: data['hasLowTraffic'] ?? false,
+                    imageUrl: data['imageUrl'] ?? '',
+                  );
+                }).toList();
+
+                return ListView.builder(
+                  itemCount: routes.length,
+                  itemBuilder: (context, index) {
+                    return _buildRouteCard(routes[index]);
+                  },
+                );
               },
             ),
           ),
@@ -154,20 +89,74 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
     );
   }
 
+  Widget _buildTerrainFilter() {
+    const terrains = ['All', 'Urban', 'Trail', 'Track'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        children: terrains.map((terrain) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FilterChip(
+              label: Text(terrain),
+              selected: _selectedTerrain == terrain,
+              onSelected: (selected) {
+                setState(() {
+                  _selectedTerrain = selected ? terrain : 'All';
+                });
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildRouteCard(Route route) {
+    final isLiked = _currentUserId != null && route.likedBy.contains(_currentUserId);
+    
     return Card(
-      margin: const EdgeInsets.all(8.0),
+      margin: const EdgeInsets.all(8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Route image placeholder
-          Container(
-            height: 150,
-            color: Colors.grey[300],
-            child: Center(child: Text(route.name)),
+          // Route image (keep existing implementation)
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Image.network(
+              route.imageUrl,
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                height: 180,
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Icon(Icons.terrain, size: 50, color: Colors.grey),
+                ),
+              ),
+              loadingBuilder: (_, child, progress) {
+                return progress == null 
+                    ? child 
+                    : Container(
+                        height: 180,
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+              },
+            ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
+          
+          // Route details
+           Padding(
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -181,68 +170,75 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.favorite_border),
-                      onPressed: () {
-                        // Implement like functionality
-                      },
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            isLiked ? Icons.favorite : Icons.favorite_border,
+                            color: isLiked ? Colors.red : null,
+                          ),
+                          onPressed: () => _toggleLike(route),
+                        ),
+                        Text(route.likeCount.toString()),
+                      ],
                     ),
                   ],
                 ),
+                
+                // Creator and distance
                 Text(
-                  "By ${route.creator}",
+                  'By ${route.creator} • ${route.distance} km',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
+                
                 const SizedBox(height: 8),
-                Row(
+                
+                // Tags (difficulty, terrain, features)
+                Wrap(
+                  spacing: 8,
                   children: [
-                    _buildInfoChip(Icons.directions_run, "${route.distance} km"),
-                    const SizedBox(width: 8),
-                    _buildInfoChip(Icons.terrain, route.terrain),
-                    const SizedBox(width: 8),
-                    _buildInfoChip(Icons.speed, route.difficulty),
+                    Chip(
+                      label: Text(route.difficulty),
+                      backgroundColor: _getDifficultyColor(route.difficulty),
+                    ),
+                    Chip(
+                      label: Text(route.terrain),
+                      backgroundColor: Colors.blue[50],
+                    ),
+                    if (route.isWellLit)
+                      const Chip(
+                        label: Text('Well-lit'),
+                        avatar: Icon(Icons.light_mode, size: 16),
+                      ),
+                    if (route.hasLowTraffic)
+                      const Chip(
+                        label: Text('Low traffic'),
+                        avatar: Icon(Icons.traffic, size: 16),
+                      ),
                   ],
                 ),
+                
                 const SizedBox(height: 8),
+                
+                // Rating and safety
                 Row(
                   children: [
                     RatingBarIndicator(
                       rating: route.rating,
-                      itemBuilder: (context, index) => const Icon(
+                      itemBuilder: (context, _) => const Icon(
                         Icons.star,
                         color: Colors.amber,
                       ),
                       itemCount: 5,
-                      itemSize: 20.0,
-                      direction: Axis.horizontal,
+                      itemSize: 20,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      "${route.rating} (${route.reviewCount})",
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    Text('(${route.reviewCount})'),
+                    const Spacer(),
+                    const Icon(Icons.security, size: 16, color: Colors.green),
+                    const SizedBox(width: 4),
+                    Text('${route.safetyRating.toStringAsFixed(1)}'),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    if (route.isWellLit)
-                      _buildSafetyChip(Icons.lightbulb_outline, "Well-lit"),
-                    if (route.hasLowTraffic)
-                      _buildSafetyChip(Icons.traffic, "Low traffic"),
-                    _buildSafetyChip(Icons.security, "Safety: ${route.safetyRating}"),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      // Navigate to route details
-                    },
-                    child: const Text("VIEW DETAILS"),
-                  ),
                 ),
               ],
             ),
@@ -252,84 +248,68 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String text) {
-    return Chip(
-      avatar: Icon(icon, size: 16),
-      label: Text(text),
-      backgroundColor: Colors.grey[200],
-      visualDensity: VisualDensity.compact,
-    );
+  Color? _getDifficultyColor(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
+        return Colors.green[50];
+      case 'moderate':
+        return Colors.orange[50];
+      case 'hard':
+        return Colors.red[50];
+      default:
+        return Colors.grey[200];
+    }
   }
 
-  Widget _buildSafetyChip(IconData icon, String text) {
-    return Chip(
-      avatar: Icon(icon, size: 16, color: Colors.green),
-      label: Text(text),
-      backgroundColor: Colors.green[50],
-      visualDensity: VisualDensity.compact,
-    );
+  Future<void> _toggleLike(Route route) async {
+    if (_currentUserId == null) {
+      // Show login prompt if user isn't authenticated
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to like routes')),
+      );
+      return;
+    }
+
+    try {
+      final routeRef = _firestore.collection('routes').doc(route.id);
+      final isLiked = route.likedBy.contains(_currentUserId);
+
+      await _firestore.runTransaction((transaction) async {
+        final doc = await transaction.get(routeRef);
+        if (!doc.exists) return;
+
+        final currentLikedBy = List<String>.from(doc['likedBy'] ?? []);
+        final newLikedBy = [...currentLikedBy];
+        final newLikeCount = doc['likeCount'] ?? 0;
+
+        if (isLiked) {
+          newLikedBy.remove(_currentUserId);
+        } else {
+          newLikedBy.add(_currentUserId!);
+        }
+
+        transaction.update(routeRef, {
+          'likedBy': newLikedBy,
+          'likeCount': isLiked ? newLikeCount - 1 : newLikeCount + 1,
+        });
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
   }
 
-  void _showTerrainFilter() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text("Filter by Terrain"),
-            ),
-            Column(
-              children: [
-                _buildFilterOption("All", _selectedTerrain, (value) {
-                  setState(() => _selectedTerrain = value);
-                  Navigator.pop(context);
-                }),
-                _buildFilterOption("Urban", _selectedTerrain, (value) {
-                  setState(() => _selectedTerrain = value);
-                  Navigator.pop(context);
-                }),
-                _buildFilterOption("Trail", _selectedTerrain, (value) {
-                  setState(() => _selectedTerrain = value);
-                  Navigator.pop(context);
-                }),
-                _buildFilterOption("Track", _selectedTerrain, (value) {
-                  setState(() => _selectedTerrain = value);
-                  Navigator.pop(context);
-                }),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Similar methods for other filters
-  void _showDistanceFilter() {
-    // Implement distance filter
-  }
-
-  void _showDifficultyFilter() {
-    // Implement difficulty filter
-  }
-
-  void _showSortFilter() {
-    // Implement sort filter
-  }
-
-  Widget _buildFilterOption(String value, String selectedValue, Function(String) onSelected) {
-    return ListTile(
-      title: Text(value),
-      trailing: value == selectedValue ? const Icon(Icons.check) : null,
-      onTap: () => onSelected(value),
-    );
+  Future<void> _toggleFavorite(String routeId) async {
+    // Implement favorite functionality
+    // Example: await _firestore.collection('users').doc(userId).update({
+    //   'favorites': FieldValue.arrayUnion([routeId])
+    // });
   }
 }
 
 class Route {
+  final String id;
   final String name;
   final String creator;
   final double distance;
@@ -341,8 +321,11 @@ class Route {
   final bool isWellLit;
   final bool hasLowTraffic;
   final String imageUrl;
+  final int likeCount;
+  final List<dynamic> likedBy;
 
   Route({
+    required this.id,
     required this.name,
     required this.creator,
     required this.distance,
@@ -354,5 +337,27 @@ class Route {
     required this.isWellLit,
     required this.hasLowTraffic,
     required this.imageUrl,
+    required this.likeCount,
+    required this.likedBy,
   });
+
+  factory Route.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Route(
+      id: doc.id,
+      name: data['name'] ?? 'Unnamed Route',
+      creator: data['creator'] ?? 'Unknown',
+      distance: (data['distance'] ?? 0).toDouble(),
+      difficulty: data['difficulty'] ?? 'Medium',
+      terrain: data['terrain'] ?? 'Mixed',
+      rating: (data['rating'] ?? 0).toDouble(),
+      reviewCount: data['reviewCount'] ?? 0,
+      safetyRating: (data['safetyRating'] ?? 0).toDouble(),
+      isWellLit: data['isWellLit'] ?? false,
+      hasLowTraffic: data['hasLowTraffic'] ?? false,
+      imageUrl: data['imageUrl'] ?? '',
+      likeCount: data['likeCount'] ?? 0,
+      likedBy: List<String>.from(data['likedBy'] ?? []),
+    );
+  }
 }
