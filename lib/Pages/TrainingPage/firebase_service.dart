@@ -22,6 +22,7 @@ class FirebaseService {
     });
   }
 
+
   Future<int> getUserProgress(String planId) async {
     final user = _auth.currentUser;
     if (user == null) return 0;
