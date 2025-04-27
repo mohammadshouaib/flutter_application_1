@@ -348,38 +348,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  Widget _buildFooterNavigation() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildFooterButton(Icons.route, "Routes"),
-          _buildFooterButton(Icons.groups, "Clans"),
-          _buildFooterButton(Icons.fitness_center, "Training"),
-          _buildFooterButton(Icons.settings, "More"),
-          // Icons.person
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooterButton(IconData icon, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: Icon(icon),
-          onPressed: () {}, // Navigate to respective section
-        ),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
-      ],
-    );
-  }
 }
 
 class RouteSuggestion {

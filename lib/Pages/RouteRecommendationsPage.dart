@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/Pages/UploadRoute.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class RouteFeedPage extends StatefulWidget {
@@ -86,6 +87,19 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.directions_run),
+        onPressed: () {
+          Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => UploadRoutePage(),
+                        ),
+          );
+        },
+        backgroundColor: Colors.orange,
+      ),
+
     );
   }
 

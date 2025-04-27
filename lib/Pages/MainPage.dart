@@ -58,16 +58,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             _currentIndex = index;
           });
         },
-      ),
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton(
-        child: Icon(Icons.directions_run),
-        onPressed: () {
-          // Start a new run
-        },
-        backgroundColor: Colors.orange,
       )
-          : null,
     );
   }
 }
