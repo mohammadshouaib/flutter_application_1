@@ -435,29 +435,35 @@ void _showFullDescription(String description) {
   }
 }
 
+
+
 class Route {
   final String id;
   final String name;
   final String creator;
-  final String? creatorId; // Added for security rules
+  final String? creatorId;
+  final String? _creatorProfileImage;
+  final String? _creatorFullName;
   final double distance;
   final String difficulty;
   final String terrain;
-  final String? description; // Added if needed
+  final String? description;
   final double rating;
   final int reviewCount;
   final double safetyRating;
   final bool isWellLit;
   final bool hasLowTraffic;
-  final List<String> imageUrls; // Changed from String imageUrl to List<String>
+  final List<String> imageUrls;
   final int likeCount;
-  final List<String> likedBy; // Explicitly typed as List<String>
+  final List<String> likedBy;
 
-  Route({
+  const Route({
     required this.id,
     required this.name,
     required this.creator,
     this.creatorId,
+    String? creatorProfileImage,
+    String? creatorFullName,
     required this.distance,
     required this.difficulty,
     required this.terrain,
@@ -467,10 +473,17 @@ class Route {
     required this.safetyRating,
     required this.isWellLit,
     required this.hasLowTraffic,
-    required this.imageUrls, // Now accepts a list
+    required this.imageUrls,
     required this.likeCount,
     required this.likedBy,
-  });
+  }) : _creatorProfileImage = creatorProfileImage,
+       _creatorFullName = creatorFullName;
+
+  // Getter for display name (prefers full name from profile if available)
+  String get displayCreator => _creatorFullName ?? creator;
+
+  // Getter for profile image URL
+  String? get creatorProfileImage => _creatorProfileImage;
 
   factory Route.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -478,7 +491,7 @@ class Route {
     return Route(
       id: doc.id,
       name: data['name'] ?? 'Unnamed Route',
-      creator: data['creator'] ?? 'Unknown', // Fallback to stored creator name
+      creator: data['creator'] ?? 'Unknown',
       creatorId: data['creatorId'],
       distance: (data['distance'] ?? 0).toDouble(),
       difficulty: data['difficulty'] ?? 'Medium',
@@ -494,26 +507,85 @@ class Route {
       likedBy: List<String>.from(data['likedBy'] ?? []),
     );
   }
-  
-  // Helper to get the first image (for thumbnails)
-  String get firstImageUrl => imageUrls.isNotEmpty ? imageUrls[0] : '';
 
-  // Convert to Map (useful for updates)
-  Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'creator': creator,
-      'creatorId': creatorId,
-      'distance': distance,
-      'difficulty': difficulty,
-      'terrain': terrain,
-      'description': description,
-      'isWellLit': isWellLit,
-      'hasLowTraffic': hasLowTraffic,
-      'imageUrls': imageUrls,
-      'likeCount': likeCount,
-      'likedBy': likedBy,
-      // Note: rating/reviewCount/safetyRating are likely updated separately
-    };
+  Future<Route> withCreatorProfile() async {
+    if (creatorId == null) return this;
+    
+    try {
+      final creatorDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(creatorId!)
+          .get();
+
+      if (creatorDoc.exists) {
+        final creatorData = creatorDoc.data() as Map<String, dynamic>?;
+        return Route(
+          id: id,
+          name: name,
+          creator: creator,
+          creatorId: creatorId,
+          creatorFullName: creatorData?['fullName'],
+          creatorProfileImage: creatorData?['profileImageUrl'],
+          distance: distance,
+          difficulty: difficulty,
+          terrain: terrain,
+          description: description,
+          rating: rating,
+          reviewCount: reviewCount,
+          safetyRating: safetyRating,
+          isWellLit: isWellLit,
+          hasLowTraffic: hasLowTraffic,
+          imageUrls: imageUrls,
+          likeCount: likeCount,
+          likedBy: likedBy,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error loading creator profile: $e');
+    }
+    
+    return this;
+  }
+
+  // Optional: Add a copyWith method for other modifications
+  Route copyWith({
+    String? name,
+    String? creator,
+    String? creatorId,
+    String? creatorProfileImage,
+    String? creatorFullName,
+    double? distance,
+    String? difficulty,
+    String? terrain,
+    String? description,
+    double? rating,
+    int? reviewCount,
+    double? safetyRating,
+    bool? isWellLit,
+    bool? hasLowTraffic,
+    List<String>? imageUrls,
+    int? likeCount,
+    List<String>? likedBy,
+  }) {
+    return Route(
+      id: id,
+      name: name ?? this.name,
+      creator: creator ?? this.creator,
+      creatorId: creatorId ?? this.creatorId,
+      creatorProfileImage: creatorProfileImage ?? _creatorProfileImage,
+      creatorFullName: creatorFullName ?? _creatorFullName,
+      distance: distance ?? this.distance,
+      difficulty: difficulty ?? this.difficulty,
+      terrain: terrain ?? this.terrain,
+      description: description ?? this.description,
+      rating: rating ?? this.rating,
+      reviewCount: reviewCount ?? this.reviewCount,
+      safetyRating: safetyRating ?? this.safetyRating,
+      isWellLit: isWellLit ?? this.isWellLit,
+      hasLowTraffic: hasLowTraffic ?? this.hasLowTraffic,
+      imageUrls: imageUrls ?? this.imageUrls,
+      likeCount: likeCount ?? this.likeCount,
+      likedBy: likedBy ?? this.likedBy,
+    );
   }
 }
