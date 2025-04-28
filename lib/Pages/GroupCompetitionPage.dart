@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'package:share_plus/share_plus.dart';
 
 class GroupCompetitionPage extends StatelessWidget {
   const GroupCompetitionPage({super.key});
@@ -7,7 +11,7 @@ class GroupCompetitionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2, // Changed from 3 to 2 since we removed chat
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Group Competition'),
@@ -22,7 +26,6 @@ class GroupCompetitionPage extends StatelessWidget {
             tabs: [
               Tab(icon: Icon(Icons.leaderboard), text: 'Leaderboard'),
               Tab(icon: Icon(Icons.emoji_events), text: 'Challenges'),
-              Tab(icon: Icon(Icons.chat), text: 'Chat'),
             ],
           ),
         ),
@@ -30,7 +33,6 @@ class GroupCompetitionPage extends StatelessWidget {
           children: [
             LeaderboardTab(),
             ChallengesTab(),
-            GroupChatTab(),
           ],
         ),
         floatingActionButton: FloatingActionButton(
@@ -43,6 +45,9 @@ class GroupCompetitionPage extends StatelessWidget {
   }
 
   static void _showCreateGroupDialog(BuildContext context) {
+    final TextEditingController groupNameController = TextEditingController();
+    final currentUser = FirebaseAuth.instance.currentUser;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -51,6 +56,7 @@ class GroupCompetitionPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
+              controller: groupNameController,
               decoration: const InputDecoration(
                 labelText: 'Group Name',
                 border: OutlineInputBorder(),
@@ -73,12 +79,48 @@ class GroupCompetitionPage extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // Will implement Firebase later
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Group created successfully!')),
-              );
+            onPressed: () async {
+              if (groupNameController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a group name')),
+                );
+                return;
+              }
+
+              try {
+                // Create new group in Firestore
+                final groupDoc = await FirebaseFirestore.instance
+                    .collection('groups')
+                    .add({
+                  'name': groupNameController.text,
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'createdBy': currentUser?.uid,
+                  'members': [currentUser?.uid],
+                  'totalDistance': 0,
+                });
+
+                // Add user to the group's members
+                await groupDoc.update({
+                  'members': FieldValue.arrayUnion([currentUser?.uid])
+                });
+
+                // Add group to user's groups
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(currentUser?.uid)
+                    .update({
+                  'groups': FieldValue.arrayUnion([groupDoc.id])
+                });
+
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Group created successfully!')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error creating group: $e')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
@@ -91,6 +133,9 @@ class GroupCompetitionPage extends StatelessWidget {
   }
 
   static void _showJoinGroupDialog(BuildContext context) {
+    final TextEditingController groupCodeController = TextEditingController();
+    final currentUser = FirebaseAuth.instance.currentUser;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -99,6 +144,7 @@ class GroupCompetitionPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
+              controller: groupCodeController,
               decoration: const InputDecoration(
                 labelText: 'Group Code',
                 hintText: 'Enter invitation code',
@@ -111,7 +157,7 @@ class GroupCompetitionPage extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: () => _showBrowseGroupsDialog(context),
                 icon: const Icon(Icons.search),
                 label: const Text('Browse Public Groups'),
                 style: ElevatedButton.styleFrom(
@@ -127,11 +173,51 @@ class GroupCompetitionPage extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Joined group successfully!')),
-              );
+            onPressed: () async {
+              if (groupCodeController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a group code')),
+                );
+                return;
+              }
+
+              try {
+                // Get group reference
+                final groupDoc = FirebaseFirestore.instance
+                    .collection('groups')
+                    .doc(groupCodeController.text);
+
+                // Check if group exists
+                final groupSnapshot = await groupDoc.get();
+                if (!groupSnapshot.exists) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Group not found')),
+                  );
+                  return;
+                }
+
+                // Add user to group
+                await groupDoc.update({
+                  'members': FieldValue.arrayUnion([currentUser?.uid])
+                });
+
+                // Add group to user's groups
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(currentUser?.uid)
+                    .update({
+                  'groups': FieldValue.arrayUnion([groupCodeController.text])
+                });
+
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Joined group successfully!')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error joining group: $e')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
@@ -142,91 +228,277 @@ class GroupCompetitionPage extends StatelessWidget {
       ),
     );
   }
+
+  static void _showBrowseGroupsDialog(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Public Groups'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('groups')
+                .where('isPublic', isEqualTo: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(child: Text('No public groups available'));
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final group = snapshot.data!.docs[index];
+                  final data = group.data() as Map<String, dynamic>;
+
+                  return ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.group),
+                    ),
+                    title: Text(data['name'] ?? 'Unnamed Group'),
+                    subtitle: Text(
+                        '${data['members']?.length ?? 0} members • ${data['totalDistance'] ?? 0} km'),
+                    trailing: data['members']?.contains(currentUser?.uid) ?? false
+                        ? const Text('Joined')
+                        : ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          // Add user to group
+                          await group.reference.update({
+                            'members': FieldValue.arrayUnion([currentUser?.uid])
+                          });
+
+                          // Add group to user's groups
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(currentUser?.uid)
+                              .update({
+                            'groups': FieldValue.arrayUnion([group.id])
+                          });
+
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Joined group successfully!')),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error joining group: $e')),
+                          );
+                        }
+                      },
+                      child: const Text('Join'),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 }
+class GroupDetailsPage extends StatelessWidget {
+  final String groupId;
+
+  const GroupDetailsPage({super.key, required this.groupId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Group Details')),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('groups').doc(groupId).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          final group = snapshot.data!.data() as Map<String, dynamic>;
+
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Text(group['name'], style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => _shareGroupInvite(context, groupId),
+                  child: const Text('Invite Members'),
+                ),
+                // Add more group details here
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+  void _shareGroupInvite(BuildContext context, String groupId) {
+    final inviteLink = 'https://yourapp.com/join?groupId=$groupId'; // Customize your app's deep link
+    Share.share('Join my running group! Use this code: $groupId or click: $inviteLink');
+  }
+}
+
 
 class LeaderboardTab extends StatelessWidget {
   const LeaderboardTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Current Group Card
-          _buildGroupCard(context),
-          const SizedBox(height: 20),
+    final currentUser = FirebaseAuth.instance.currentUser;
 
-          // Weekly Leaderboard
-          _buildLeaderboardSection(context),
-          const SizedBox(height: 20),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser?.uid)
+          .snapshots(),
+      builder: (context, userSnapshot) {
+        if (!userSnapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-          // Participation Rate
-          _buildParticipationSection(context),
-          const SizedBox(height: 20),
+        final userGroups = (userSnapshot.data?.data() as Map<String, dynamic>?)?['groups'] as List<dynamic>? ?? [];
 
-          // Group Members
-          _buildMembersSection(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGroupCard(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const CircleAvatar(
-              radius: 40,
-              backgroundImage: NetworkImage(
-                'https://via.placeholder.com/150/FF6B35/FFFFFF?text=FR',
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Fast Runners',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        if (userGroups.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildStatItem(context, 'Members', '24'),
-                _buildStatItem(context, 'Rank', '#3'),
-                _buildStatItem(context, 'KM', '142.5'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                OutlinedButton(
-                  onPressed: () {},
-                  child: const Text('View Group'),
-                ),
+                const Text('You are not in any groups yet'),
+                const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                  child: const Text('Invite'),
+                  onPressed: () => GroupCompetitionPage._showJoinGroupDialog(context),
+                  child: const Text('Join a Group'),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          );
+        }
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('groups')
+              .where(FieldPath.documentId, whereIn: userGroups)
+              .snapshots(),
+          builder: (context, groupsSnapshot) {
+            if (!groupsSnapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final groups = groupsSnapshot.data!.docs;
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Current Group Card
+                  _buildGroupCard(context, groups.first),
+                  const SizedBox(height: 20),
+
+                  // Weekly Leaderboard
+                  _buildLeaderboardSection(context, groups.first),
+                  const SizedBox(height: 20),
+
+                  // Participation Rate
+                  _buildParticipationSection(context, groups.first),
+                  const SizedBox(height: 20),
+
+                  // Group Members
+                  _buildMembersSection(context, groups.first),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
+  Widget _buildGroupCard(BuildContext context, QueryDocumentSnapshot group) {
+    final data = group.data() as Map<String, dynamic>;
+    final membersCount = (data['members'] as List<dynamic>?)?.length ?? 0;
+    final totalDistance = data['totalDistance'] ?? 0;
+    final groupId = group.id; // Get the group ID for sharing
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('groups').snapshots(),
+      builder: (context, allGroupsSnapshot) {
+        if (!allGroupsSnapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        // Calculate group rank (existing code)
+        int rank = 1;
+        final allGroups = allGroupsSnapshot.data!.docs;
+        allGroups.sort((a, b) {
+          final aDistance = (a.data() as Map<String, dynamic>)['totalDistance'] ?? 0;
+          final bDistance = (b.data() as Map<String, dynamic>)['totalDistance'] ?? 0;
+          return bDistance.compareTo(aDistance);
+        });
+        for (int i = 0; i < allGroups.length; i++) {
+          if (allGroups[i].id == group.id) {
+            rank = i + 1;
+            break;
+          }
+        }
+
+        return Card(
+          elevation: 4,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // ... (existing CircleAvatar, group name, stats)
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () {
+                        // Navigate to a detailed group view
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => GroupDetailsPage(groupId: groupId),
+                          ),
+                        );
+                      },
+                      child: const Text('View Group'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => _shareGroupInvite(context, groupId),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                      ),
+                      child: const Text('Invite'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+// Helper function to share group invite link
+  void _shareGroupInvite(BuildContext context, String groupId) {
+    final inviteLink = 'https://yourapp.com/join?groupId=$groupId'; // Customize your app's deep link
+    Share.share('Join my running group! Use this code: $groupId or click: $inviteLink');
+  }
   Widget _buildStatItem(BuildContext context, String label, String value) {
     return Column(
       children: [
@@ -244,75 +516,45 @@ class LeaderboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildLeaderboardSection(BuildContext context) {
+  Widget _buildLeaderboardSection(BuildContext context, QueryDocumentSnapshot group) {
+    final data = group.data() as Map<String, dynamic>;
+    final members = data['members'] as List<dynamic>? ?? [];
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Weekly Leaderboard',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('View All'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const LinearProgressIndicator(
-              value: 0.7,
-              backgroundColor: Colors.grey,
-              valueColor: AlwaysStoppedAnimation(Colors.orange),
-            ),
-            const SizedBox(height: 8),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Your position: #5 (42.5 km)'),
-                Text('7 days remaining'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 5,
-              separatorBuilder: (context, index) => const Divider(height: 16),
-              itemBuilder: (context, index) {
-                final names = ['Alex', 'Jamie', 'Taylor', 'Morgan', 'You'];
-                final kms = [68.2, 59.7, 52.3, 45.8, 42.5];
-                final paces = ['4:45', '4:52', '5:03', '5:12', '5:18'];
+            // ... (existing title and progress bar)
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .where(FieldPath.documentId, whereIn: members)
+                  .orderBy('weeklyDistance', descending: true) // Sort by distance
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: index == 4 ? Colors.orange[100] : null,
-                    child: Text(
-                      '${index + 1}',
-                      style: TextStyle(
-                        color: index == 4 ? Colors.orange : null,
-                        fontWeight: FontWeight.bold,
+                return ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: snapshot.data!.docs.length,
+                  separatorBuilder: (context, index) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final user = snapshot.data!.docs[index];
+                    final userData = user.data() as Map<String, dynamic>;
+                    final isCurrentUser = user.id == FirebaseAuth.instance.currentUser?.uid;
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: NetworkImage(userData['photoURL'] ?? ''),
+                        child: Text('${index + 1}'), // Rank number
                       ),
-                    ),
-                  ),
-                  title: Text(
-                    names[index],
-                    style: index == 4
-                        ? const TextStyle(fontWeight: FontWeight.bold)
-                        : null,
-                  ),
-                  subtitle: Text('${kms[index]} km • ${paces[index]}/km'),
-                  trailing: index < 3
-                      ? Icon(
-                    Icons.emoji_events,
-                    color: [Colors.yellow[700], Colors.grey, Colors.brown[300]][index],
-                  )
-                      : null,
+                      title: Text(userData['displayName'] ?? 'Anonymous'),
+                      subtitle: Text('${userData['weeklyDistance']?.toStringAsFixed(1) ?? '0'} km'),
+                      trailing: index < 3 ? const Icon(Icons.emoji_events) : null,
+                    );
+                  },
                 );
               },
             ),
@@ -321,8 +563,13 @@ class LeaderboardTab extends StatelessWidget {
       ),
     );
   }
+  }
 
-  Widget _buildParticipationSection(BuildContext context) {
+  Widget _buildParticipationSection(BuildContext context, QueryDocumentSnapshot group) {
+    final data = group.data() as Map<String, dynamic>;
+    final members = data['members'] as List<dynamic>? ?? [];
+    final activeMembers = 18; // You'd calculate this based on who logged runs this week
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -347,18 +594,18 @@ class LeaderboardTab extends StatelessWidget {
                   const Icon(Icons.bar_chart, size: 48, color: Colors.grey),
                   const SizedBox(height: 8),
                   Text(
-                    '75% Participation',
+                    '${((activeMembers / members.length) * 100).toStringAsFixed(0)}% Participation',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  const Text('18 of 24 members active this week'),
+                  Text('$activeMembers of ${members.length} members active this week'),
                 ],
               ),
             ),
             const SizedBox(height: 8),
-            const LinearProgressIndicator(
-              value: 0.75,
+            LinearProgressIndicator(
+              value: activeMembers / members.length,
               backgroundColor: Colors.grey,
-              valueColor: AlwaysStoppedAnimation(Colors.green),
+              valueColor: const AlwaysStoppedAnimation(Colors.green),
             ),
           ],
         ),
@@ -366,7 +613,10 @@ class LeaderboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildMembersSection(BuildContext context) {
+  Widget _buildMembersSection(BuildContext context, QueryDocumentSnapshot group) {
+    final data = group.data() as Map<String, dynamic>;
+    final members = data['members'] as List<dynamic>? ?? [];
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -389,25 +639,40 @@ class LeaderboardTab extends StatelessWidget {
             const SizedBox(height: 12),
             SizedBox(
               height: 100,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: 8,
-                separatorBuilder: (context, index) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  return Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundImage: NetworkImage(
-                          'https://i.pravatar.cc/150?img=$index',
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        ['Alex', 'Jamie', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Drew', 'You'][index],
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .where(FieldPath.documentId, whereIn: members)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: snapshot.data!.docs.length,
+                    separatorBuilder: (context, index) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      final user = snapshot.data!.docs[index];
+                      final userData = user.data() as Map<String, dynamic>;
+
+                      return Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundImage: NetworkImage(
+                              userData['photoURL'] ?? 'https://i.pravatar.cc/150?img=$index',
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            userData['displayName'] ?? 'User ${index + 1}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      );
+                    },
                   );
                 },
               ),
@@ -417,74 +682,126 @@ class LeaderboardTab extends StatelessWidget {
       ),
     );
   }
-}
+
 
 class ChallengesTab extends StatelessWidget {
   const ChallengesTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Create Challenge Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _showCreateChallengeDialog(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Create New Challenge'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Colors.orange,
-              ),
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser?.uid)
+          .snapshots(),
+      builder: (context, userSnapshot) {
+        if (!userSnapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final userGroups = (userSnapshot.data?.data() as Map<String, dynamic>?)?['groups'] as List<dynamic>? ?? [];
+
+        if (userGroups.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Join a group to participate in challenges'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => GroupCompetitionPage._showJoinGroupDialog(context),
+                  child: const Text('Join a Group'),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 20),
+          );
+        }
 
-          // Active Challenges
-          Text(
-            'Active Challenges',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          const ChallengeCard(
-            title: '100K Week Challenge',
-            progress: 42.5,
-            goal: 100,
-            endDate: 'Jan 28',
-            participants: 18,
-          ),
-          const ChallengeCard(
-            title: '5AM Run Club',
-            progress: 5,
-            goal: 7,
-            endDate: 'Jan 31',
-            participants: 12,
-          ),
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('challenges')
+              .where('groupId', whereIn: userGroups)
+              .orderBy('endDate', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          // Completed Challenges
-          const SizedBox(height: 24),
-          Text(
-            'Completed Challenges',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          const ChallengeCard(
-            title: 'Holiday Miles',
-            progress: 85,
-            goal: 50,
-            endDate: 'Dec 25',
-            participants: 22,
-            completed: true,
-          ),
-        ],
-      ),
+            final activeChallenges = snapshot.data!.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return data['endDate'].toDate().isAfter(DateTime.now());
+            }).toList();
+
+            final completedChallenges = snapshot.data!.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return !data['endDate'].toDate().isAfter(DateTime.now());
+            }).toList();
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Create Challenge Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showCreateChallengeDialog(context, userGroups.first),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Create New Challenge'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.orange,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Active Challenges
+                  if (activeChallenges.isNotEmpty) ...[
+                    Text(
+                      'Active Challenges',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    ...activeChallenges.map((doc) => ChallengeCard(
+                      challenge: doc.data() as Map<String, dynamic>,
+                    )),
+                  ],
+
+                  // Completed Challenges
+                  if (completedChallenges.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Text(
+                      'Completed Challenges',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    ...completedChallenges.map((doc) => ChallengeCard(
+                      challenge: doc.data() as Map<String, dynamic>,
+                      completed: true,
+                    )),
+                  ],
+
+                  if (activeChallenges.isEmpty && completedChallenges.isEmpty)
+                    const Center(child: Text('No challenges yet')),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
-  void _showCreateChallengeDialog(BuildContext context) {
+  void _showCreateChallengeDialog(BuildContext context, String groupId) {
+    final TextEditingController nameController = TextEditingController();
+    final TextEditingController goalController = TextEditingController();
+    final TextEditingController durationController = TextEditingController();
+    DateTime? endDate;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -493,6 +810,7 @@ class ChallengesTab extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
+              controller: nameController,
               decoration: const InputDecoration(
                 labelText: 'Challenge Name',
                 border: OutlineInputBorder(),
@@ -500,6 +818,7 @@ class ChallengesTab extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             TextField(
+              controller: goalController,
               decoration: const InputDecoration(
                 labelText: 'Goal (km)',
                 border: OutlineInputBorder(),
@@ -507,26 +826,45 @@ class ChallengesTab extends StatelessWidget {
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 16),
-            const Row(
+            Row(
               children: [
                 Expanded(
                   child: TextField(
-                    decoration: InputDecoration(
+                    controller: durationController,
+                    decoration: const InputDecoration(
                       labelText: 'Duration (days)',
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
                   ),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: 'End Date',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Icons.calendar_today),
+                  child: InkWell(
+                    onTap: () async {
+                      final selectedDate = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now().add(const Duration(days: 7)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (selectedDate != null) {
+                        endDate = selectedDate;
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'End Date',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(endDate?.toString().substring(0, 10) ?? 'Select date'),
+                          const Icon(Icons.calendar_today),
+                        ],
+                      ),
                     ),
-                    readOnly: true,
                   ),
                 ),
               ],
@@ -539,11 +877,37 @@ class ChallengesTab extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Challenge created!')),
-              );
+            onPressed: () async {
+              if (nameController.text.isEmpty ||
+                  goalController.text.isEmpty ||
+                  durationController.text.isEmpty ||
+                  endDate == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please fill all fields')),
+                );
+                return;
+              }
+
+              try {
+                await FirebaseFirestore.instance.collection('challenges').add({
+                  'name': nameController.text,
+                  'goal': double.parse(goalController.text),
+                  'duration': int.parse(durationController.text),
+                  'endDate': endDate,
+                  'groupId': groupId,
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'participants': [FirebaseAuth.instance.currentUser?.uid],
+                });
+
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Challenge created!')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error creating challenge: $e')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
@@ -557,27 +921,23 @@ class ChallengesTab extends StatelessWidget {
 }
 
 class ChallengeCard extends StatelessWidget {
-  final String title;
-  final double progress;
-  final double goal;
-  final String endDate;
-  final int participants;
+  final Map<String, dynamic> challenge;
   final bool completed;
 
   const ChallengeCard({
     super.key,
-    required this.title,
-    required this.progress,
-    required this.goal,
-    required this.endDate,
-    required this.participants,
+    required this.challenge,
     this.completed = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final progress = 42.5; // You'd get this from user's progress
+    final goal = challenge['goal'] as double;
     final percentage = progress / goal;
     final isOverAchieved = percentage > 1.0;
+    final endDate = (challenge['endDate'] as Timestamp).toDate();
+    final participants = (challenge['participants'] as List<dynamic>?)?.length ?? 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -590,7 +950,7 @@ class ChallengeCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  title,
+                  challenge['name'],
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: completed ? Colors.grey : null,
                   ),
@@ -640,7 +1000,7 @@ class ChallengeCard extends StatelessWidget {
                 const Spacer(),
                 const Icon(Icons.calendar_today, size: 16),
                 const SizedBox(width: 4),
-                Text('Ends $endDate'),
+                Text('Ends ${endDate.toString().substring(0, 10)}'),
               ],
             ),
             if (isOverAchieved && !completed) ...[
@@ -653,111 +1013,6 @@ class ChallengeCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class GroupChatTab extends StatelessWidget {
-  const GroupChatTab({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            reverse: true,
-            itemCount: 10,
-            itemBuilder: (context, index) {
-              final isMe = index % 3 == 0;
-              final messages = [
-                "Let's meet for a group run this Saturday!",
-                "I just completed week 3 of the training plan!",
-                "Who's running tomorrow morning?",
-                "Great job everyone on the 100K challenge!",
-                "I found this great new trail we should try",
-                "Can someone recommend good running shoes?",
-                "Our group is now #3 on the leaderboard!",
-                "6AM run at the park tomorrow",
-                "I'll be there!",
-                "Don't forget to log your miles today",
-              ];
-
-              return Align(
-                alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isMe ? Colors.orange[100] : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.7,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (!isMe)
-                        Text(
-                          ['Alex', 'Jamie', 'Taylor'][index % 3],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      Text(messages[index]),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${(index + 1) % 12}:${(index * 5) % 60} ${index % 2 == 0 ? 'AM' : 'PM'}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(8),
-          color: Colors.grey[100],
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () {},
-              ),
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Type a message...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.send),
-                color: Colors.orange,
-                onPressed: () {},
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

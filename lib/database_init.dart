@@ -581,73 +581,316 @@ Future<void> initializeTrainingPlans() async {
 
   // 3. Half Marathon Prep (16 weeks)
   await firestore.collection('training_plans').doc('half_marathon').set({
-    'title': 'Half Marathon Prep',
-    'description': 'Complete your first 21K',
-    'level': 'Advanced',
-    'duration': '16 weeks',
-    'totalWeeks': 16,
-    'icon': 'road',
+    'title': 'Half Marathon Challenge',
+    'description': 'Train to complete a half marathon confidently',
+    'level': 'Intermediate',
+    'duration': '12 weeks',
+    'totalWeeks': 12,
+    'icon': 'roadRunning',
     'createdAt': FieldValue.serverTimestamp(),
     'weeks': {
       '1': {
-        'description': 'Base mileage',
-        'totalDistance': 25,
-        'unit': 'km',
+        'description': 'Base endurance building',
         'workouts': [
           {
             'day': 1,
             'type': 'Easy',
-            'distance': 5,
-            'unit': 'km',
-            'pace': 'Conversational'
+            'duration': 30,
+            'unit': 'minutes'
+          },
+          {
+            'day': 2,
+            'type': 'Tempo',
+            'description': 'Comfortably hard pace',
+            'duration': 20,
+            'unit': 'minutes'
           },
           {
             'day': 3,
-            'type': 'Speed',
-            'intervals': [
-              {'action': 'Warmup', 'duration': 15, 'unit': 'minutes'},
-              {'action': 'Run', 'distance': 400, 'unit': 'meters', 'pace': '5K race pace'},
-              {'action': 'Recover', 'duration': 90, 'unit': 'seconds'},
-              {'repeat': 6, 'of': 'Run/Recover'}
-            ]
-          },
-          {
-            'day': 5,
             'type': 'Long',
-            'distance': 8,
-            'unit': 'km',
-            'pace': 'Slow and steady'
+            'distance': 6,
+            'unit': 'km'
           }
         ]
       },
-      // Weeks 2-15...
-      '16': {
-        'description': 'Race week - Taper time',
+      '2': {
+        'description': 'Adding strength and stamina',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Hills',
+            'description': 'Hill sprints',
+            'repeats': 6,
+            'hillLength': 150,
+            'unit': 'meters'
+          },
+          {
+            'day': 2,
+            'type': 'Tempo',
+            'duration': 25,
+            'unit': 'minutes'
+          },
+          {
+            'day': 3,
+            'type': 'Long',
+            'distance': 8,
+            'unit': 'km'
+          }
+        ]
+      },
+      '3': {
+        'description': 'Progressive building',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Interval',
+            'intervals': [
+              {'action': 'Warmup', 'duration': 10, 'unit': 'minutes'},
+              {'action': 'Run', 'duration': 800, 'unit': 'meters'},
+              {'action': 'Walk', 'duration': 90, 'unit': 'seconds'},
+              {'repeat': 4, 'of': 'Run/Walk'},
+              {'action': 'Cooldown', 'duration': 5, 'unit': 'minutes'}
+            ]
+          },
+          {
+            'day': 2,
+            'type': 'Easy',
+            'duration': 35,
+            'unit': 'minutes'
+          },
+          {
+            'day': 3,
+            'type': 'Long',
+            'distance': 10,
+            'unit': 'km'
+          }
+        ]
+      },
+      '4': {
+        'description': 'Pushing endurance',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Interval',
+            'intervals': [
+              {'action': 'Warmup', 'duration': 10, 'unit': 'minutes'},
+              {'action': 'Run', 'duration': 1, 'unit': 'km'},
+              {'action': 'Walk', 'duration': 90, 'unit': 'seconds'},
+              {'repeat': 5, 'of': 'Run/Walk'},
+              {'action': 'Cooldown', 'duration': 5, 'unit': 'minutes'}
+            ]
+          },
+          {
+            'day': 2,
+            'type': 'Tempo',
+            'duration': 30,
+            'unit': 'minutes'
+          },
+          {
+            'day': 3,
+            'type': 'Long',
+            'distance': 12,
+            'unit': 'km'
+          }
+        ]
+      },
+      '5': {
+        'description': 'Mid-program strength',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Hills',
+            'description': 'Longer hill sprints',
+            'repeats': 7,
+            'hillLength': 200,
+            'unit': 'meters'
+          },
+          {
+            'day': 2,
+            'type': 'Tempo',
+            'duration': 35,
+            'unit': 'minutes'
+          },
+          {
+            'day': 3,
+            'type': 'Long',
+            'distance': 14,
+            'unit': 'km'
+          }
+        ]
+      },
+      '6': {
+        'description': 'Endurance building week',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Interval',
+            'intervals': [
+              {'action': 'Run', 'duration': 1.2, 'unit': 'km'},
+              {'action': 'Walk', 'duration': 90, 'unit': 'seconds'},
+              {'repeat': 4, 'of': 'Run/Walk'}
+            ]
+          },
+          {
+            'day': 2,
+            'type': 'Easy',
+            'duration': 40,
+            'unit': 'minutes'
+          },
+          {
+            'day': 3,
+            'type': 'Long',
+            'distance': 16,
+            'unit': 'km'
+          }
+        ]
+      },
+      '7': {
+        'description': 'Sharpening speed',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Interval',
+            'intervals': [
+              {'action': 'Run', 'duration': 400, 'unit': 'meters'},
+              {'action': 'Recover', 'duration': 1, 'unit': 'minute'},
+              {'repeat': 8, 'of': 'Run/Recover'}
+            ]
+          },
+          {
+            'day': 2,
+            'type': 'Tempo',
+            'duration': 40,
+            'unit': 'minutes'
+          },
+          {
+            'day': 3,
+            'type': 'Long',
+            'distance': 18,
+            'unit': 'km'
+          }
+        ]
+      },
+      '8': {
+        'description': 'Volume consolidation',
         'workouts': [
           {
             'day': 1,
             'type': 'Easy',
-            'distance': 5,
-            'unit': 'km',
-            'notes': 'Keep it light'
+            'duration': 45,
+            'unit': 'minutes'
+          },
+          {
+            'day': 2,
+            'type': 'Tempo',
+            'duration': 45,
+            'unit': 'minutes'
           },
           {
             'day': 3,
-            'type': 'Short Tempo',
-            'distance': 3,
-            'unit': 'km',
-            'pace': 'Goal race pace'
+            'type': 'Long',
+            'distance': 19,
+            'unit': 'km'
+          }
+        ]
+      },
+      '9': {
+        'description': 'Peak training',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Interval',
+            'intervals': [
+              {'action': 'Run', 'duration': 1.5, 'unit': 'km'},
+              {'action': 'Recover', 'duration': 90, 'unit': 'seconds'},
+              {'repeat': 5, 'of': 'Run/Recover'}
+            ]
           },
           {
-            'day': 6,
+            'day': 2,
+            'type': 'Tempo',
+            'duration': 50,
+            'unit': 'minutes'
+          },
+          {
+            'day': 3,
+            'type': 'Long',
+            'distance': 20,
+            'unit': 'km'
+          }
+        ]
+      },
+      '10': {
+        'description': 'Taper starts',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Easy',
+            'duration': 30,
+            'unit': 'minutes'
+          },
+          {
+            'day': 2,
+            'type': 'Tempo',
+            'duration': 30,
+            'unit': 'minutes'
+          },
+          {
+            'day': 3,
+            'type': 'Long',
+            'distance': 14,
+            'unit': 'km'
+          }
+        ]
+      },
+      '11': {
+        'description': 'Final sharpening',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Easy',
+            'duration': 20,
+            'unit': 'minutes'
+          },
+          {
+            'day': 2,
+            'type': 'Tempo',
+            'duration': 20,
+            'unit': 'minutes'
+          },
+          {
+            'day': 3,
+            'type': 'Long',
+            'distance': 8,
+            'unit': 'km'
+          }
+        ]
+      },
+      '12': {
+        'description': 'Race week!',
+        'workouts': [
+          {
+            'day': 1,
+            'type': 'Taper',
+            'action': 'Easy run',
+            'duration': 20,
+            'unit': 'minutes'
+          },
+          {
+            'day': 2,
+            'type': 'Rest',
+            'notes': 'Stay fresh'
+          },
+          {
+            'day': 3,
             'type': 'Race',
             'action': 'Half Marathon',
-            'notes': 'Trust your training!'
+            'notes': 'Pace yourself and enjoy!'
           }
         ]
       }
     }
   });
 
-  //print('All training plans initialized successfully');
+  print('Half Marathon Prep (FULL 16 Weeks) initialized successfully!');
 }

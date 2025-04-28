@@ -642,4 +642,26 @@ class _WeekWorkoutsViewState extends State<WeekWorkoutsView> {
       ],
     );
   }
+
+
+
+  Widget _buildStandardWorkout(Map<String, dynamic> workout) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (workout['distance'] != null)
+          Text('Distance: ${workout['distance']} ${workout['unit']}'),
+        if (workout['duration'] != null)
+          Text('Duration: ${workout['duration']} ${workout['unit']}'),
+        if (workout['pace'] != null)
+          Text('Pace: ${workout['pace']}'),
+        if (workout['notes'] != null)
+          Text('Notes: ${workout['notes']}'),
+      ],
+    );
+  }
+
+
+
+
 }
