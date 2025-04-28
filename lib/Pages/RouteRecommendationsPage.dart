@@ -317,8 +317,10 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
               const SizedBox(height: 8),
               
               // Rating and safety
+              // Rating only (moved to right)
               Row(
                 children: [
+                  const Spacer(), // Pushes content to the right
                   RatingBarIndicator(
                     rating: route.rating,
                     itemBuilder: (context, _) => const Icon(
@@ -330,10 +332,6 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
                   ),
                   const SizedBox(width: 4),
                   Text('(${route.reviewCount})'),
-                  const Spacer(),
-                  const Icon(Icons.security, size: 16, color: Colors.green),
-                  const SizedBox(width: 4),
-                  Text('${route.safetyRating.toStringAsFixed(1)}'),
                 ],
               ),
             ],
