@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -11,10 +14,11 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   // User Profile Data
-  String userName = "Alex Runner";
-  String userEmail = "runner@example.com";
-  String userBio = "Marathon enthusiast | 5K PB: 18:30";
+  String userName = "";
+  String userEmail = "";
+  String userBio = "";
   File? profileImage;
+  String? profileImageUrl;
 
   // App Settings
   bool isDarkMode = false;
@@ -25,14 +29,66 @@ class _SettingsPageState extends State<SettingsPage> {
   String temperatureUnit = "°C";
 
   final ImagePicker _picker = ImagePicker();
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    setState(() => _isLoading = true);
+    try {
+      final userData = await _fetchUserData();
+      final authUser = FirebaseAuth.instance.currentUser;
+      
+      if (userData != null && authUser != null) {
+        setState(() {
+          userName = userData['fullName'] ?? authUser.displayName ?? 'No Name';
+          userEmail = authUser.email ?? userData['email'] ?? 'No Email';
+          userBio = userData['bio'] ?? 'No bio yet';
+          profileImageUrl = userData['profileImageUrl'];
+          
+          // Load settings
+          isDarkMode = userData['settings']?['darkMode'] ?? false;
+          voiceGuidance = userData['settings']?['voiceGuidance'] ?? true;
+          distanceUnit = userData['settings']?['distanceUnit'] ?? 'km';
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error loading data: ${e.toString()}")),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _fetchUserData() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      return docSnapshot.data();
+    }
+    return null;
+  } catch (e) {
+    print("Error fetching user data: $e");
+    return null;
+  }
+}
+
 
   Future<void> _pickImage() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        setState(() {
-          profileImage = File(image.path);
-        });
+        setState(() => profileImage = File(image.path));
+        await _uploadProfileImage(File(image.path));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -41,8 +97,39 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _uploadProfileImage(File image) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_images/${user.uid}.jpg');
+      
+      await ref.putFile(image);
+      final url = await ref.getDownloadURL();
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'profileImageUrl': url});
+
+      setState(() => profileImageUrl = url);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Upload failed: ${e.toString()}")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Settings"),
@@ -58,26 +145,26 @@ class _SettingsPageState extends State<SettingsPage> {
           // App Preferences
           _buildSectionHeader("Preferences"),
           _buildSettingSwitch("Dark Mode", isDarkMode, (value) {
-            setState(() => isDarkMode = value);
+            _updateSetting('darkMode', value);
           }),
           _buildSettingSwitch("Voice Guidance", voiceGuidance, (value) {
-            setState(() => voiceGuidance = value);
+            _updateSetting('voiceGuidance', value);
           }),
           _buildSettingSwitch("Auto Pause", autoPause, (value) {
-            setState(() => autoPause = value);
+            _updateSetting('autoPause', value);
           }),
           _buildUnitSelector("Distance Unit", ["km", "mi"], distanceUnit, (value) {
-            setState(() => distanceUnit = value!);
+            _updateSetting('distanceUnit', value);
           }),
           _buildUnitSelector("Temperature Unit", ["°C", "°F"], temperatureUnit, (value) {
-            setState(() => temperatureUnit = value!);
+            _updateSetting('temperatureUnit', value);
           }),
           const SizedBox(height: 24),
 
           // Safety Features
           _buildSectionHeader("Safety Features"),
           _buildSettingSwitch("Safety Alerts", safetyAlerts, (value) {
-            setState(() => safetyAlerts = value);
+            _updateSetting('safetyAlerts', value);
           }),
           _buildSettingTile(
             "Emergency Contacts",
@@ -147,9 +234,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     radius: 40,
                     backgroundImage: profileImage != null
                         ? FileImage(profileImage!)
-                        : const NetworkImage(
-                            "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200",
-                          ) as ImageProvider,
+                        : (profileImageUrl != null
+                            ? NetworkImage(profileImageUrl!)
+                            : const NetworkImage(
+                                "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200",
+                              )) as ImageProvider,
                   ),
                   Container(
                     padding: const EdgeInsets.all(6),
@@ -194,6 +283,36 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _updateSetting(String key, dynamic value) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
+            'settings.$key': value,
+          });
+
+      setState(() {
+        switch (key) {
+          case 'darkMode':
+            isDarkMode = value;
+            break;
+          case 'voiceGuidance':
+            voiceGuidance = value;
+            break;
+          // Add other cases as needed
+        }
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to update setting: ${e.toString()}")),
+      );
+    }
   }
 
   Widget _buildSectionHeader(String title) {
