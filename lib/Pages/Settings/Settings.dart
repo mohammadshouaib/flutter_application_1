@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/Pages/Settings/EditSettings.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -81,7 +82,6 @@ class _SettingsPageState extends State<SettingsPage> {
     return null;
   }
 }
-
 
   Future<void> _pickImage() async {
     try {
@@ -387,20 +387,20 @@ class _SettingsPageState extends State<SettingsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _EditProfileScreen(
-          userName: userName,
-          userEmail: userEmail,
-          userBio: userBio,
-          profileImage: profileImage,
-          onSave: (name, email, bio, image) {
-            setState(() {
-              userName = name;
-              userEmail = email;
-              userBio = bio;
-              profileImage = image;
-            });
-          },
-        ),
+        builder: (context) => EditProfileScreen(
+  userName: userName,
+  userEmail: userEmail,
+  userBio: userBio,
+  profileImageUrl: profileImageUrl,  // Changed from profileImage to profileImageUrl
+  onSave: (name, email, bio, imageUrl) {  // Changed image to imageUrl
+    setState(() {
+      userName = name;
+      userEmail = email;
+      userBio = bio;
+      profileImageUrl = imageUrl;  // Now storing the URL instead of File
+    });
+  },
+),
       ),
     );
   }
@@ -412,163 +412,4 @@ class _SettingsPageState extends State<SettingsPage> {
   void _openPrivacyPolicy() {}
   void _showVersionInfo() {}
   void _confirmLogout() {}
-}
-
-// Edit Profile Screen
-class _EditProfileScreen extends StatefulWidget {
-  final String userName;
-  final String userEmail;
-  final String userBio;
-  final File? profileImage;
-  final Function(String, String, String, File?) onSave;
-
-  const _EditProfileScreen({
-    required this.userName,
-    required this.userEmail,
-    required this.userBio,
-    required this.profileImage,
-    required this.onSave,
-  });
-
-  @override
-  State<_EditProfileScreen> createState() => _EditProfileScreenState();
-}
-
-class _EditProfileScreenState extends State<_EditProfileScreen> {
-  late final TextEditingController _nameController;
-  late final TextEditingController _emailController;
-  late final TextEditingController _bioController;
-  File? _selectedImage;
-  final ImagePicker _picker = ImagePicker();
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.userName);
-    _emailController = TextEditingController(text: widget.userEmail);
-    _bioController = TextEditingController(text: widget.userBio);
-    _selectedImage = widget.profileImage;
-  }
-
-  Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        setState(() {
-          _selectedImage = File(image.path);
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error selecting image: ${e.toString()}")),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Edit Profile"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              widget.onSave(
-                _nameController.text,
-                _emailController.text,
-                _bioController.text,
-                _selectedImage,
-              );
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: _pickImage,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: _selectedImage != null
-                    ? FileImage(_selectedImage!)
-                    : widget.profileImage != null
-                        ? FileImage(widget.profileImage!)
-                        : const NetworkImage(
-                            "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200",
-                          ) as ImageProvider,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: "Name",
-                prefixIcon: Icon(Icons.person),
-              ),
-              validator: (value) =>
-                  value?.isEmpty ?? true ? 'Please enter your name' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: "Email",
-                prefixIcon: Icon(Icons.email),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your email';
-                }
-                if (!value.contains('@')) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _bioController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: "Bio",
-                alignLabelWithHint: true,
-                prefixIcon: Icon(Icons.info),
-              ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () {
-                widget.onSave(
-                  _nameController.text,
-                  _emailController.text,
-                  _bioController.text,
-                  _selectedImage,
-                );
-                Navigator.pop(context);
-              },
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: const Text("Save Changes"),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

@@ -474,26 +474,27 @@ class Route {
 
   factory Route.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
     return Route(
       id: doc.id,
       name: data['name'] ?? 'Unnamed Route',
-      creator: data['creator'] ?? 'Unknown',
-      creatorId: data['creatorId'], // Optional
+      creator: data['creator'] ?? 'Unknown', // Fallback to stored creator name
+      creatorId: data['creatorId'],
       distance: (data['distance'] ?? 0).toDouble(),
       difficulty: data['difficulty'] ?? 'Medium',
       terrain: data['terrain'] ?? 'Mixed',
-      description: data['description'], // Optional
+      description: data['description'],
       rating: (data['rating'] ?? 0).toDouble(),
       reviewCount: data['reviewCount'] ?? 0,
       safetyRating: (data['safetyRating'] ?? 0).toDouble(),
       isWellLit: data['isWellLit'] ?? false,
       hasLowTraffic: data['hasLowTraffic'] ?? false,
-      imageUrls: List<String>.from(data['imageUrls'] ?? []), // Convert to List<String>
+      imageUrls: List<String>.from(data['imageUrls'] ?? []),
       likeCount: data['likeCount'] ?? 0,
-      likedBy: List<String>.from(data['likedBy'] ?? []), // Ensures List<String>
+      likedBy: List<String>.from(data['likedBy'] ?? []),
     );
   }
-
+  
   // Helper to get the first image (for thumbnails)
   String get firstImageUrl => imageUrls.isNotEmpty ? imageUrls[0] : '';
 

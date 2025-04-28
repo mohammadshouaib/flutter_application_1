@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/Pages/Settings.dart';
+import 'package:flutter_application_1/Pages/Settings/Settings.dart';
 
 import 'GroupCompetitionPage.dart';
 import 'HomeDashboard.dart';
