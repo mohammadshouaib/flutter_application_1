@@ -4,6 +4,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart'; // Only if you need image picking
 
 class UploadRoutePage extends StatefulWidget {
   const UploadRoutePage({super.key});
@@ -62,7 +64,7 @@ class _UploadRoutePageState extends State<UploadRoutePage> {
 
   Future<void> _uploadRoute() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_selectedImages.isEmpty) {
+    if (_selectedImages.isEmpty) {
       _showError('Please add at least one image');
       return;
     }
@@ -83,11 +85,11 @@ class _UploadRoutePageState extends State<UploadRoutePage> {
       await _firestore.collection('routes').add({
         'name': _nameController.text,
         'creator': user.displayName ?? 'Anonymous',
-        // 'creatorId': user.uid,
+        'creatorId': user.uid,
         'distance': double.parse(_distanceController.text),
         'difficulty': _difficulty,
         'terrain': _terrain,
-        // 'description': _descriptionController.text,
+        'description': _descriptionController.text,
         'isWellLit': _isWellLit,
         'hasLowTraffic': _hasLowTraffic,
         'imageUrls': imageUrls,
@@ -118,7 +120,7 @@ class _UploadRoutePageState extends State<UploadRoutePage> {
     for (final imageFile in _selectedImages) {
       try {
         final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final ref = _storage.ref().child('route_images/$fileName');
+        final ref = _storage.ref().child('routes/$fileName');
         
         final uploadTask = ref.putFile(imageFile);
         uploadTask.snapshotEvents.listen((taskSnapshot) {
@@ -299,71 +301,71 @@ class _UploadRoutePageState extends State<UploadRoutePage> {
               const SizedBox(height: 24),
 
               // // Image Upload Section
-              // const Text('Route Images:', style: TextStyle(fontWeight: FontWeight.bold)),
-              // const SizedBox(height: 8),
-              // Text(
-              //   'Add at least one image (max 5)',
-              //   style: TextStyle(color: Colors.grey[600]),
-              // ),
-              // const SizedBox(height: 12),
-// 
+              const Text('Route Images:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                'Add at least one image (max 5)',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 12),
+
               // Selected Images Grid
-              // if (_selectedImages.isNotEmpty)
-              //   GridView.builder(
-              //     shrinkWrap: true,
-              //     physics: const NeverScrollableScrollPhysics(),
-              //     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              //       crossAxisCount: 3,
-              //       crossAxisSpacing: 8,
-              //       mainAxisSpacing: 8,
-              //     ),
-              //     itemCount: _selectedImages.length,
-              //     itemBuilder: (context, index) {
-              //       return Stack(
-              //         children: [
-              //           Image.file(
-              //             _selectedImages[index],
-              //             fit: BoxFit.cover,
-              //             width: double.infinity,
-              //             height: double.infinity,
-              //           ),
-              //           Positioned(
-              //             top: 4,
-              //             right: 4,
-              //             child: GestureDetector(
-              //               onTap: () {
-              //                 setState(() {
-              //                   _selectedImages.removeAt(index);
-              //                 });
-              //               },
-              //               child: Container(
-              //                 decoration: const BoxDecoration(
-              //                   shape: BoxShape.circle,
-              //                   color: Colors.black54,
-              //                 ),
-              //                 child: const Icon(
-              //                   Icons.close,
-              //                   size: 20,
-              //                   color: Colors.white,
-              //                 ),
-              //               ),
-              //             ),
-              //           ),
-              //         ],
-              //       );
-              //     },
-              //   ),
-              // const SizedBox(height: 16),
-// 
-              // // Add Images Button
-              // OutlinedButton.icon(
-              //   onPressed: _selectedImages.length >= 5 ? null : _pickImages,
-              //   icon: const Icon(Icons.add_photo_alternate),
-              //   label: Text(_selectedImages.isEmpty
-              //       ? 'Add Photos'
-              //       : 'Add More Photos (${_selectedImages.length}/5)'),
-              // ),
-              // const SizedBox(height: 32),
+              if (_selectedImages.isNotEmpty)
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: _selectedImages.length,
+                  itemBuilder: (context, index) {
+                    return Stack(
+                      children: [
+                        Image.file(
+                          _selectedImages[index],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedImages.removeAt(index);
+                              });
+                            },
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.black54,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              const SizedBox(height: 16),
+
+               // Add Images Button
+              OutlinedButton.icon(
+                onPressed: _selectedImages.length >= 5 ? null : _pickImages,
+                icon: const Icon(Icons.add_photo_alternate),
+                label: Text(_selectedImages.isEmpty
+                    ? 'Add Photos'
+                    : 'Add More Photos (${_selectedImages.length}/5)'),
+              ),
+              const SizedBox(height: 32),
 
               // Submit Button
               SizedBox(

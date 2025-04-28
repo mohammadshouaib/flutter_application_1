@@ -30,7 +30,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
-    HomeDashboard(),
+    // HomeDashboard(),
     RouteFeedPage(),
     GroupCompetitionPage(),
     TrainingPlansPage(),
@@ -47,7 +47,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         selectedItemColor: Colors.orange,
         unselectedItemColor: Colors.grey,
         items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          // BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.route), label: 'Routes'),
           BottomNavigationBarItem(icon: Icon(Icons.groups), label: 'Groups'),
           BottomNavigationBarItem(icon: Icon(Icons.directions_run), label: 'Training'),
