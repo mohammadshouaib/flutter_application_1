@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/Pages/RoutePage/UploadRoute.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 
 class RouteFeedPage extends StatefulWidget {
   const RouteFeedPage({super.key});
@@ -16,6 +19,7 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
   final  _auth = FirebaseAuth.instance;
   String _selectedTerrain = 'All';
   String? _currentUserId;
+  bool _showLocationDetails = false;
   
 
   @override
@@ -62,24 +66,29 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
                 final routes = snapshot.data!.docs.map((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   return Route(
-                    id: doc.id,
-                    userRatings: data['userRatings'],
-                    location: data['location'],
-                    name: data['name'] ?? 'Unnamed Route',
-                    creator: data['creator'] ?? 'Unknown',
-                    distance: (data['distance'] ?? 0).toDouble(),
-                    difficulty: data['difficulty'] ?? 'Medium',
-                    terrain: data['terrain'] ?? 'Mixed',
-                    rating: (data['rating'] ?? 0).toDouble(),
-                    reviewCount: data['reviewCount'] ?? 0,
-                    description: data['description']??"",
-                    safetyRating: (data['safetyRating'] ?? 0).toDouble(),
-                    isWellLit: data['isWellLit'] ?? false,
-                    hasLowTraffic: data['hasLowTraffic'] ?? false,
-                    imageUrls: List<String>.from(data['imageUrls'] ?? []), // Changed to imageUrls
-                    likeCount: data['likeCount'] ?? 0,
-                    likedBy: List<String>.from(data['likedBy'] ?? []),
-                  );
+      id: doc.id,
+      name: data['name'] ?? 'Unnamed Route',
+      location: data['location'],
+      creator: data['creator'] ?? 'Unknown',
+      creatorId: data['creatorId'],
+      distance: (data['distance'] ?? 0).toDouble(),
+      difficulty: data['difficulty'] ?? 'Medium',
+      terrain: data['terrain'] ?? 'Mixed',
+      description: data['description'],
+      userRatings: data['userRatings'],
+      rating: (data['rating'] ?? 0).toDouble(),
+      reviewCount: data['reviewCount'] ?? 0,
+      safetyRating: (data['safetyRating'] ?? 0).toDouble(),
+      isWellLit: data['isWellLit'] ?? false,
+      hasLowTraffic: data['hasLowTraffic'] ?? false,
+      imageUrls: List<String>.from(data['imageUrls'] ?? []),
+      likeCount: data['likeCount'] ?? 0,
+      likedBy: List<String>.from(data['likedBy'] ?? []),
+      address: data['address'],
+      pathCoordinates: data['pathCoordinates']?.map<GeoPoint>(
+        (point) => GeoPoint(point['latitude'], point['longitude'])),
+      mapImageUrl: data['mapImageUrl']
+    );
               }).toList();
 
                 return ListView.builder(
@@ -108,6 +117,64 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
 
     );
   }
+
+  void _openFullMap(Route route) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => Scaffold(
+        appBar: AppBar(title: Text('${route.name} Location')),
+        body: GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: LatLng(
+              route.location!.latitude,
+              route.location!.longitude,
+            ),
+            zoom: 14,
+          ),
+          markers: {
+            Marker(
+              markerId: const MarkerId('routeLocation'),
+              position: LatLng(
+                route.location!.latitude,
+                route.location!.longitude,
+              ),
+              infoWindow: InfoWindow(title: route.name),
+            ),
+          },
+          polylines: route.pathCoordinates != null
+    ? {
+        Polyline(
+          polylineId: const PolylineId('routePath'),
+          points: route.pathCoordinates!
+              .map((p) => LatLng(p.latitude, p.longitude))
+              .toList(),
+          color: Colors.blue,
+          width: 4,
+        ),
+      }
+    : {},
+        ),
+      ),
+    ),
+  );
+}
+
+void _launchNavigation(Route route) async {
+  final uri = Uri.parse(
+    'https://www.google.com/maps/dir/?api=1'
+    '&destination=${route.location!.latitude},${route.location!.longitude}'
+    '&travelmode=walking',
+  );
+  
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not launch navigation')),
+    );
+  }
+}
 
   //Card Helper
   Widget _buildTerrainFilter() {
@@ -252,7 +319,6 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
                   ),
                 ],
               ),
-              
               // Creator and distance
               Text(
                 'By ${route.creator} • ${route.distance} km',
@@ -413,6 +479,130 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
                   ),
                 ],
               ),
+              // Location section
+    if (route.location != null) ...[
+  const Divider(),
+  const SizedBox(height: 8),
+  
+  // Clickable header to toggle details
+  InkWell(
+    onTap: _toggleLocationDetails,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.location_on, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Location Details',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+          const Spacer(),
+          Icon(
+            _showLocationDetails ? Icons.expand_less : Icons.expand_more,
+            size: 20,
+          ),
+        ],
+      ),
+    ),
+  ),
+  
+  // Expandable content
+  AnimatedCrossFade(
+    duration: const Duration(milliseconds: 300),
+    crossFadeState: _showLocationDetails 
+        ? CrossFadeState.showSecond 
+        : CrossFadeState.showFirst,
+    firstChild: const SizedBox.shrink(),
+    secondChild: Column(
+      children: [
+        // Mini map preview
+        Container(
+          height: 150,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey[200],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: LatLng(
+                  route.location!.latitude,
+                  route.location!.longitude,
+                ),
+                zoom: 14,
+              ),
+              markers: {
+                Marker(
+                  markerId: const MarkerId('routeLocation'),
+                  position: LatLng(
+                    route.location!.latitude,
+                    route.location!.longitude,
+                  ),
+                ),
+              },
+              zoomControlsEnabled: false,
+              scrollGesturesEnabled: false,
+              tiltGesturesEnabled: false,
+              rotateGesturesEnabled: false,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Address and actions
+        if (route.address != null) ...[
+          Row(
+            children: [
+              const Icon(Icons.place, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  route.address!,
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
+        
+        // Action buttons
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.directions, size: 18),
+                label: const Text('Navigate'),
+                onPressed: () => _launchNavigation(route),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.map, size: 18),
+                label: const Text('View Map'),
+                onPressed: () => _openFullMap(route),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  ),
+],
             ],
           ),
         ),
@@ -421,6 +611,11 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
   );
 }
 
+void _toggleLocationDetails() {
+    setState(() {
+      _showLocationDetails = !_showLocationDetails;
+    });
+  }
 
 void _showFullDescription(String description) {
   showModalBottomSheet(
@@ -528,15 +723,21 @@ class Route {
   final int likeCount;
   final List<String> likedBy;
   final Map<String, dynamic>? userRatings;
-  final GeoPoint? location;
+  final GeoPoint? location; // Stores latitude/longitude
+  final String? address; // Human-readable address
+  final List<GeoPoint>? pathCoordinates; // For multi-point routes
+  final String? mapImageUrl; // Optional static map image
 
   
 
   const Route({
     required this.id,
+    required this.location,
+    required this.address,
+    this.pathCoordinates,
+    this.mapImageUrl,
     required this.name,
     required this.creator,
-    required this.location,
     this.creatorId,
     String? creatorProfileImage,
     String? creatorFullName,
@@ -588,6 +789,10 @@ class Route {
       imageUrls: List<String>.from(data['imageUrls'] ?? []),
       likeCount: data['likeCount'] ?? 0,
       likedBy: List<String>.from(data['likedBy'] ?? []),
+      address: data['address'],
+      pathCoordinates: data['pathCoordinates']?.map<GeoPoint>(
+        (point) => GeoPoint(point['latitude'], point['longitude'])),
+      mapImageUrl: data['mapImageUrl']
     );
   }
 
@@ -601,7 +806,7 @@ class Route {
           .get();
 
       if (creatorDoc.exists) {
-        final creatorData = creatorDoc.data() as Map<String, dynamic>?;
+        final creatorData = creatorDoc.data();
         return Route(
           id: id,
           name: name,
@@ -623,6 +828,9 @@ class Route {
           imageUrls: imageUrls,
           likeCount: likeCount,
           likedBy: likedBy,
+          address: address ?? this.address,
+          pathCoordinates: pathCoordinates ?? this.pathCoordinates,
+          mapImageUrl: mapImageUrl ?? this.mapImageUrl,
         );
       }
     } catch (e) {
@@ -634,6 +842,10 @@ class Route {
 
   // Optional: Add a copyWith method for other modifications
   Route copyWith({
+    GeoPoint? location,
+    String? address,
+    List<GeoPoint>? pathCoordinates,
+    String? mapImageUrl,
     String? name,
     String? creator,
     String? creatorId,
@@ -673,6 +885,9 @@ class Route {
       imageUrls: imageUrls ?? this.imageUrls,
       likeCount: likeCount ?? this.likeCount,
       likedBy: likedBy ?? this.likedBy,
+      address: address ?? this.address,
+      pathCoordinates: pathCoordinates ?? this.pathCoordinates,
+      mapImageUrl: mapImageUrl ?? this.mapImageUrl,
     );
   }
 }
