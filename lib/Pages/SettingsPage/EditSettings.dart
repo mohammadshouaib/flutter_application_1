@@ -182,21 +182,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 16),
             TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: "Email",
-                prefixIcon: Icon(Icons.email),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your email';
-                }
-                if (!value.contains('@')) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
+            controller: _emailController,
+            enabled: false, // Makes the field completely uneditable and grayed out
+            decoration: const InputDecoration(
+              labelText: "Email",
+              prefixIcon: Icon(Icons.email),
             ),
+          ),
+
             const SizedBox(height: 16),
             TextFormField(
               controller: _bioController,

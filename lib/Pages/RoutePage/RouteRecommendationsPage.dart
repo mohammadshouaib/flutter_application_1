@@ -402,7 +402,7 @@ void _launchNavigation(Route route) async {
                 itemBuilder: (context, _) => Icon(
                   Icons.star,
                   color: (route.userRatings?[_currentUserId] as num?) != null
-                      ? Colors.blue
+                      ? Colors.orange
                       : Colors.grey[300],
                 ),
                 onRatingUpdate: (newRating) async {
