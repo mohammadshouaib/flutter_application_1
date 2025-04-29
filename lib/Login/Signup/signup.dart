@@ -68,7 +68,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
 Widget build(BuildContext context) {
   return Scaffold(
-    backgroundColor: Colors.white,
+    backgroundColor: Color(0xFFFDF6EC),
     body: SafeArea(
       child: LayoutBuilder(builder: (context, constraints) {
         return SingleChildScrollView(
@@ -76,9 +76,10 @@ Widget build(BuildContext context) {
           child: Column(
             children: [
               SizedBox(height: constraints.maxHeight * 0.06),
-              Image.network(
-                "https://i.postimg.cc/nz0YBQcH/Logo-light.png",
-                height: 100,
+              Image.asset(
+                "assets/Logo.png",
+                width: 140,
+                height: 140,
               ),
               SizedBox(height: constraints.maxHeight * 0.06),
               Text(
@@ -189,7 +190,7 @@ Widget build(BuildContext context) {
                       onPressed: _signUp,
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
-                        backgroundColor: const Color(0xFF00BF6D),
+                        backgroundColor:  Colors.orange,
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 48),
                         shape: const StadiumBorder(),
@@ -210,7 +211,7 @@ Widget build(BuildContext context) {
                           children: [
                             TextSpan(
                               text: "Sign in",
-                              style: TextStyle(color: Color(0xFF00BF6D)),
+                              style: TextStyle(color: Colors.orange),
                             ),
                           ],
                         ),

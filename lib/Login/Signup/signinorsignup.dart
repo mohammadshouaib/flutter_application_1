@@ -7,19 +7,18 @@ class SigninOrSignupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor:  Color(0xFFFDF6EC),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
             children: [
               const Spacer(flex: 2),
-              Image.network(
-                MediaQuery.of(context).platformBrightness == Brightness.light
-                    ? "https://i.postimg.cc/nz0YBQcH/Logo-light.png"
-                    : "https://i.postimg.cc/MHH0DKv1/Logo-dark.png",
-                height: 146,
-              ),
+            Image.asset(
+              "assets/Logo.png",
+              width: 140,
+              height: 140,
+            ),
               const Spacer(),
               ElevatedButton(
                 onPressed: () {
@@ -31,7 +30,7 @@ class SigninOrSignupScreen extends StatelessWidget {
                 },
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
-                  backgroundColor: const Color(0xFF00BF6D),
+                  backgroundColor: Colors.orange,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 48),
                   shape: const StadiumBorder(),
