@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_1/Pages/UploadRoute.dart';
+import 'package:flutter_application_1/Pages/RoutePage/UploadRoute.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class RouteFeedPage extends StatefulWidget {
@@ -62,6 +62,7 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
                   final data = doc.data() as Map<String, dynamic>;
                   return Route(
                     id: doc.id,
+                    userRatings: data['userRatings'],
                     name: data['name'] ?? 'Unnamed Route',
                     creator: data['creator'] ?? 'Unknown',
                     distance: (data['distance'] ?? 0).toDouble(),
@@ -106,6 +107,7 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
     );
   }
 
+  //Card Helper
   Widget _buildTerrainFilter() {
     const terrains = ['All', 'Urban', 'Trail', 'Track'];
     return SingleChildScrollView(
@@ -319,21 +321,97 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
               // Rating and safety
               // Rating only (moved to right)
               Row(
-                children: [
-                  const Spacer(), // Pushes content to the right
-                  RatingBarIndicator(
-                    rating: route.rating,
-                    itemBuilder: (context, _) => const Icon(
-                      Icons.star,
-                      color: Colors.amber,
-                    ),
-                    itemCount: 5,
-                    itemSize: 20,
-                  ),
-                  const SizedBox(width: 4),
-                  Text('(${route.reviewCount})'),
-                ],
-              ),
+  children: [
+    // User's Rating Bar (left side)
+   RatingBar.builder(
+  initialRating: (route.userRatings?[_currentUserId] as num?)?.toDouble() ?? 0.0,
+  minRating: 1,
+  direction: Axis.horizontal,
+  allowHalfRating: true,
+  itemCount: 5,
+  itemSize: 20,
+  itemPadding: const EdgeInsets.symmetric(horizontal: 2),
+  itemBuilder: (context, _) => Icon(
+    Icons.star,
+    color: (route.userRatings?[_currentUserId] as num?) != null
+        ? Colors.blue
+        : Colors.grey[300],
+  ),
+  onRatingUpdate: (newRating) async {
+        if (_currentUserId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please login to rate this route')),
+          );
+          return;
+        }
+
+        try {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return;
+
+          final routeRef = FirebaseFirestore.instance.collection('routes').doc(route.id);
+          final doc = await routeRef.get();
+          final currentData = doc.data() as Map<String, dynamic>;
+          final ratedBy = List<String>.from(currentData['ratedBy'] ?? []);
+          final previousRating = currentData['userRatings']?[user.uid] ?? 0.0;
+
+          final isRerating = ratedBy.contains(user.uid);
+          final currentTotalRating = route.rating * route.reviewCount;
+          final newReviewCount = isRerating ? route.reviewCount : route.reviewCount + 1;
+          final newRatingTotal = currentTotalRating - previousRating + newRating;
+
+          await routeRef.update({
+            'rating': newRatingTotal / newReviewCount,
+            'reviewCount': isRerating ? route.reviewCount : FieldValue.increment(1),
+            'ratedBy': isRerating ? ratedBy : FieldValue.arrayUnion([user.uid]),
+            'userRatings.${user.uid}': newRating,
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isRerating ? 'Rating updated!' : 'Thanks for rating!'),
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to submit rating: ${e.toString()}')),
+          );
+        }
+      },
+    ),
+    
+    const Spacer(),
+    
+    // Average Rating Display (right side)
+    Row(
+      children: [
+        Text(
+          '${route.rating.toStringAsFixed(1)}',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const Text(
+          '/5',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '(${route.reviewCount})',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    ),
+  ],
+),
+
             ],
           ),
         ),
@@ -427,12 +505,14 @@ void _showFullDescription(String description) {
     }
   }
 
+
   Future<void> _toggleFavorite(String routeId) async {
     // Implement favorite functionality
     // Example: await _firestore.collection('users').doc(userId).update({
     //   'favorites': FieldValue.arrayUnion([routeId])
     // });
   }
+
 }
 
 
@@ -456,6 +536,9 @@ class Route {
   final List<String> imageUrls;
   final int likeCount;
   final List<String> likedBy;
+  final Map<String, dynamic>? userRatings;
+
+  
 
   const Route({
     required this.id,
@@ -475,6 +558,7 @@ class Route {
     required this.hasLowTraffic,
     required this.imageUrls,
     required this.likeCount,
+    required this.userRatings,
     required this.likedBy,
   }) : _creatorProfileImage = creatorProfileImage,
        _creatorFullName = creatorFullName;
@@ -484,6 +568,10 @@ class Route {
 
   // Getter for profile image URL
   String? get creatorProfileImage => _creatorProfileImage;
+  double? getUserRating(String? userId) {
+    if (userId == null || userRatings == null) return null;
+    return (userRatings![userId] as num?)?.toDouble();
+  }
 
   factory Route.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -497,6 +585,7 @@ class Route {
       difficulty: data['difficulty'] ?? 'Medium',
       terrain: data['terrain'] ?? 'Mixed',
       description: data['description'],
+      userRatings: data['userRatings'],
       rating: (data['rating'] ?? 0).toDouble(),
       reviewCount: data['reviewCount'] ?? 0,
       safetyRating: (data['safetyRating'] ?? 0).toDouble(),
@@ -527,6 +616,7 @@ class Route {
           creatorFullName: creatorData?['fullName'],
           creatorProfileImage: creatorData?['profileImageUrl'],
           distance: distance,
+          userRatings: userRatings,
           difficulty: difficulty,
           terrain: terrain,
           description: description,
@@ -577,6 +667,7 @@ class Route {
       distance: distance ?? this.distance,
       difficulty: difficulty ?? this.difficulty,
       terrain: terrain ?? this.terrain,
+      userRatings: userRatings,
       description: description ?? this.description,
       rating: rating ?? this.rating,
       reviewCount: reviewCount ?? this.reviewCount,
