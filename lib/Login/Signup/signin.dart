@@ -22,7 +22,7 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   void initState() {
     super.initState();
-    _checkCurrentUser();
+    //_checkCurrentUser();
   }
 
   Future<void> _checkCurrentUser() async {
@@ -47,8 +47,7 @@ class _SignInScreenState extends State<SignInScreen> {
         );
 
         if (user != null && mounted) {
-          // Set persistence explicitly
-          await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+
 
           if (mounted) {
             Navigator.pushReplacement(

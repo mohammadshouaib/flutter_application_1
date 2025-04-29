@@ -107,32 +107,4 @@ class RunService {
       await deleteBatch.commit();
     }
   }
-  Future<void> capExistingChallenges() async {
-    final challenges = await FirebaseFirestore.instance
-        .collection('challenges')
-        .get();
-
-    final batch = FirebaseFirestore.instance.batch();
-
-    for (final challenge in challenges.docs) {
-      final data = challenge.data();
-      final goal = (data['goal'] ?? 0).toDouble();
-      final participants = data['participants'] as Map<String, dynamic>? ?? {};
-
-      for (final userId in participants.keys) {
-        final progress = (participants[userId]?['progress'] ?? 0.0).toDouble();
-        if (progress > goal) {
-          batch.update(
-            challenge.reference,
-            {
-              'participants.$userId.progress': goal,
-              'participants.$userId.completed': true,
-            },
-          );
-        }
-      }
-    }
-
-    await batch.commit();
-  }
 }

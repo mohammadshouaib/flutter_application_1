@@ -340,11 +340,12 @@ class LeaderboardTab extends StatelessWidget {
 
 
 
-void _showAddRunDialog(BuildContext context) {
+  void _showAddRunDialog(BuildContext context) {
     final distanceController = TextEditingController();
     final durationController = TextEditingController();
     final notesController = TextEditingController();
     DateTime selectedDate = DateTime.now();
+    bool isSaving = false; // Add this state variable
 
     showDialog(
       context: context,
@@ -356,57 +357,70 @@ void _showAddRunDialog(BuildContext context) {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: distanceController,
-                    decoration: const InputDecoration(
-                      labelText: 'Distance (km)',
-                      hintText: 'km',
+                  if (isSaving) // Show loading indicator if saving
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 16),
+                      child: CircularProgressIndicator(),
                     ),
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: durationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Duration (minutes)',
-                      hintText: 'min',
+                  if (!isSaving) // Only show form when not saving
+                    Column(
+                      children: [
+                        TextField(
+                          controller: distanceController,
+                          decoration: const InputDecoration(
+                            labelText: 'Distance (km)',
+                            hintText: 'km',
+                          ),
+                          keyboardType: TextInputType.numberWithOptions(decimal: true),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: durationController,
+                          decoration: const InputDecoration(
+                            labelText: 'Duration (minutes)',
+                            hintText: 'min',
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                        const SizedBox(height: 16),
+                        ListTile(
+                          title: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
+                          trailing: const Icon(Icons.calendar_today),
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDate,
+                              firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                              lastDate: DateTime.now(),
+                            );
+                            if (date != null) {
+                              setState(() => selectedDate = date);
+                            }
+                          },
+                        ),
+                        TextField(
+                          controller: notesController,
+                          decoration: const InputDecoration(
+                            labelText: 'Notes (optional)',
+                            hintText: 'Morning run in the park',
+                          ),
+                          maxLines: 2,
+                        ),
+                      ],
                     ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    title: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                        lastDate: DateTime.now(),
-                      );
-                      if (date != null) {
-                        setState(() => selectedDate = date);
-                      }
-                    },
-                  ),
-                  TextField(
-                    controller: notesController,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes (optional)',
-                      hintText: 'Morning run in the park',
-                    ),
-                    maxLines: 2,
-                  ),
                 ],
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
+              if (!isSaving) // Only show cancel button when not saving
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
               ElevatedButton(
-                onPressed: () async {
+                onPressed: isSaving
+                    ? null // Disable button when saving
+                    : () async {
                   try {
                     final distance = double.tryParse(distanceController.text);
                     final duration = int.tryParse(durationController.text);
@@ -418,19 +432,36 @@ void _showAddRunDialog(BuildContext context) {
                       return;
                     }
 
+                    setState(() => isSaving = true); // Show loading state
+
                     await RunService.logRun(
                       distance: distance,
                       duration: duration,
+
                       notes: notesController.text,
                     );
-                    Navigator.pop(context);
+
+                    Navigator.pop(context); // Close the dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Run saved successfully!')),
+                    );
                   } catch (e) {
+                    setState(() => isSaving = false);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Failed to save run: ${e.toString()}')),
                     );
                   }
                 },
-                child: const Text('Save Run'),
+                child: isSaving
+                    ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+                    : const Text('Save Run'),
               ),
             ],
           );
