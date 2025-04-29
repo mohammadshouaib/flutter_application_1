@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_1/Pages/GroupCompetitionPage/run_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 
 import 'GroupCompetitionPage.dart';
 import 'PublicGroupsTab.dart';
+
+final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
 class LeaderboardTab extends StatelessWidget {
   const LeaderboardTab({super.key});
@@ -69,7 +72,7 @@ class LeaderboardTab extends StatelessWidget {
                     const SizedBox(height: 20),
                     if (currentUser != null) _buildRecentRuns(currentUser.uid),
                     const SizedBox(height: 20),
-                    _buildParticipationSection(context, group),
+                    _buildParticipationSection(group),
                     const SizedBox(height: 20),
                     _buildMembersSection(context, group),
                   ],
@@ -357,7 +360,7 @@ void _showAddRunDialog(BuildContext context) {
                     controller: distanceController,
                     decoration: const InputDecoration(
                       labelText: 'Distance (km)',
-                      hintText: '5.2',
+                      hintText: 'km',
                     ),
                     keyboardType: TextInputType.numberWithOptions(decimal: true),
                   ),
@@ -366,7 +369,7 @@ void _showAddRunDialog(BuildContext context) {
                     controller: durationController,
                     decoration: const InputDecoration(
                       labelText: 'Duration (minutes)',
-                      hintText: '32',
+                      hintText: 'min',
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -404,24 +407,28 @@ void _showAddRunDialog(BuildContext context) {
               ),
               ElevatedButton(
                 onPressed: () async {
-                  final distance = double.tryParse(distanceController.text);
-                  final duration = int.tryParse(durationController.text);
+                  try {
+                    final distance = double.tryParse(distanceController.text);
+                    final duration = int.tryParse(durationController.text);
 
-                  if (distance == null || duration == null || distance <= 0 || duration <= 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please enter valid distance and duration')),
+                    if (distance == null || duration == null || distance <= 0 || duration <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter valid distance and duration')),
+                      );
+                      return;
+                    }
+
+                    await RunService.logRun(
+                      distance: distance,
+                      duration: duration,
+                      notes: notesController.text,
                     );
-                    return;
+                    Navigator.pop(context);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to save run: ${e.toString()}')),
+                    );
                   }
-
-                  await _saveRunData(
-                    context: context,
-                    distance: distance,
-                    duration: duration,
-                    date: selectedDate,
-                    notes: notesController.text,
-                  );
-                  Navigator.pop(context);
                 },
                 child: const Text('Save Run'),
               ),
@@ -782,63 +789,38 @@ void _showAddRunDialog(BuildContext context) {
     }
     return users;
   }
-  Widget _buildParticipationSection(BuildContext context, DocumentSnapshot group) {
+  Widget _buildParticipationSection(DocumentSnapshot group) {
     final data = group.data() as Map<String, dynamic>;
     final members = data['members'] as List<dynamic>? ?? [];
+    final activeMembers = data['activeMembersThisWeek'] as List<dynamic>? ?? [];
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('runs')
-          .where('groupId', isEqualTo: group.id)
-          .where('date', isGreaterThan: DateTime.now().subtract(const Duration(days: 7)))
-          .snapshots(),
-      builder: (context, runsSnapshot) {
-        final activeMembers = runsSnapshot.hasData
-            ? runsSnapshot.data!.docs.map((doc) => doc['userId']).toSet().length
-            : 0;
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Participation Rate',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  alignment: Alignment.center,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.bar_chart, size: 48, color: Colors.grey),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${members.isEmpty ? 0 : ((activeMembers / members.length) * 100).toStringAsFixed(0)}% Participation',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text('$activeMembers of ${members.length} members active this week'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: members.isEmpty ? 0 : activeMembers / members.length,
-                  backgroundColor: Colors.grey,
-                  valueColor: const AlwaysStoppedAnimation(Colors.green),
-                ),
-              ],
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(
+              'Participation: ${activeMembers.length}/${members.length}',
+              style: TextStyle(fontSize: 18),
             ),
-          ),
-        );
-      },
+            LinearProgressIndicator(
+              value: members.isEmpty ? 0 : activeMembers.length / members.length,
+              minHeight: 10,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: activeMembers.map((userId) => FutureBuilder(
+                future: _firestore.collection('users').doc(userId).get(),
+                builder: (ctx, snapshot) {
+                  final name = snapshot.data?['fullName'] ?? 'User';
+                  return Chip(label: Text(name));
+                },
+              )).toList(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -914,3 +896,4 @@ void _showAddRunDialog(BuildContext context) {
     Share.share('Join my running group! Use this code: $groupId or click: $inviteLink');
   }
 }
+

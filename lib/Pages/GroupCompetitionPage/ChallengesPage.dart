@@ -213,103 +213,117 @@ class _ChallengesTabState extends State<ChallengesTab> {
   }
 
   Widget _buildChallengesList(BuildContext context, String groupId) {
+    final currentUser = FirebaseAuth.instance.currentUser?.uid;
     final now = DateTime.now();
-    final activeChallenges = _challenges.where((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      final endDate = (data['endDate'] as Timestamp).toDate();
-      return endDate.isAfter(now);
-    }).toList();
 
-    final completedChallenges = _challenges.where((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      final endDate = (data['endDate'] as Timestamp).toDate();
-      return !endDate.isAfter(now);
-    }).toList();
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('challenges')
+          .where('groupId', isEqualTo: groupId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        setState(() {
-          _isInitialLoad = true;
-        });
-        await FirebaseFirestore.instance
-            .collection('challenges')
-            .where('groupId', isEqualTo: groupId)
-            .get();
-        setState(() {
-          _isInitialLoad = false;
-        });
-      },
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ElevatedButton.icon(
-                onPressed: () => _showCreateChallengeDialog(context, groupId),
-                icon: const Icon(Icons.add),
-                label: const Text('Create New Challenge'),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
+        final challenges = snapshot.data!.docs;
+        final activeChallenges = challenges.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final endDate = (data['endDate'] as Timestamp).toDate();
+          return endDate.isAfter(now);
+        }).toList();
+
+        final completedChallenges = challenges.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final endDate = (data['endDate'] as Timestamp).toDate();
+          return !endDate.isAfter(now);
+        }).toList();
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            setState(() {
+              _isInitialLoad = true;
+            });
+            await FirebaseFirestore.instance
+                .collection('challenges')
+                .where('groupId', isEqualTo: groupId)
+                .get();
+            setState(() {
+              _isInitialLoad = false;
+            });
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showCreateChallengeDialog(context, groupId),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create New Challenge'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              if (activeChallenges.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                        if (index == 0) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 16, bottom: 8),
+                            child: Text(
+                              'Active Challenges',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                          );
+                        }
+                        final challenge = activeChallenges[index - 1];
+                        return ChallengeCard(
+                          challenge: challenge.data() as Map<String, dynamic>,
+                        );
+                      },
+                      childCount: activeChallenges.length + 1,
+                    ),
+                  ),
+                ),
+              if (completedChallenges.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                        if (index == 0) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 24, bottom: 8),
+                            child: Text(
+                              'Completed Challenges',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                          );
+                        }
+                        final challenge = completedChallenges[index - 1];
+                        return ChallengeCard(
+                          challenge: challenge.data() as Map<String, dynamic>,
+                          completed: true,
+                        );
+                      },
+                      childCount: completedChallenges.length + 1,
+                    ),
+                  ),
+                ),
+              const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
+            ],
           ),
-          if (activeChallenges.isNotEmpty)
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    if (index == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 16, bottom: 8),
-                        child: Text(
-                          'Active Challenges',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      );
-                    }
-                    final challenge = activeChallenges[index - 1];
-                    return ChallengeCard(
-                      challenge: challenge.data() as Map<String, dynamic>,
-                    );
-                  },
-                  childCount: activeChallenges.length + 1,
-                ),
-              ),
-            ),
-          if (completedChallenges.isNotEmpty)
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    if (index == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 24, bottom: 8),
-                        child: Text(
-                          'Completed Challenges',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      );
-                    }
-                    final challenge = completedChallenges[index - 1];
-                    return ChallengeCard(
-                      challenge: challenge.data() as Map<String, dynamic>,
-                      completed: true,
-                    );
-                  },
-                  childCount: completedChallenges.length + 1,
-                ),
-              ),
-            ),
-          const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
-        ],
-      ),
+        );
+      },
     );
   }
-
   static void _showBrowseGroupsDialog(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
 
@@ -516,6 +530,89 @@ void _showCreateChallengeDialog(BuildContext context, String groupId) {
             ],
           );
         },
+      ),
+    );
+  }
+}
+class ChallengeCard extends StatelessWidget {
+  final Map<String, dynamic> challenge;
+  final bool completed;
+
+  const ChallengeCard({
+    super.key,
+    required this.challenge,
+    this.completed = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser?.uid;
+    final progress = challenge['participantProgress']?[currentUser] ?? 0.0;
+    final goal = challenge['goal'] ?? 1.0;
+    final percentage = progress / goal;
+    final endDate = (challenge['endDate'] as Timestamp).toDate();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  challenge['name'] ?? 'Challenge',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: completed ? Colors.grey : null,
+                  ),
+                ),
+                if (completed)
+                  const Chip(
+                    label: Text('Completed'),
+                    backgroundColor: Colors.green,
+                    labelStyle: TextStyle(color: Colors.white),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: percentage > 1 ? 1 : percentage,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation(
+                completed ? Colors.green : Colors.orange,
+              ),
+              minHeight: 10,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${progress.toStringAsFixed(1)}/${goal.toStringAsFixed(0)} km',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${(percentage * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today, size: 16),
+                const SizedBox(width: 4),
+                Text('Ends ${DateFormat('MMM d, y').format(endDate)}'),
+                const Spacer(),
+                const Icon(Icons.people_outline, size: 16),
+                const SizedBox(width: 4),
+                Text('${challenge['participants']?.length ?? 0} participants'),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
