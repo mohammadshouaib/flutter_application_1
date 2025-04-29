@@ -1,51 +1,89 @@
 import 'package:flutter/material.dart';
 
-class PrivacyPolicyScreen extends StatelessWidget {
-  const PrivacyPolicyScreen({super.key});
+class PrivacyPolicyPage extends StatelessWidget {
+  const PrivacyPolicyPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Privacy Policy')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Text(
-            '''
-Privacy Policy for Running App
-
-Your privacy is important to us. This Privacy Policy explains how we collect, use, and protect your information.
-
-1. Data Collection
-We collect information such as your name, email address, running statistics, and location (if enabled).
-
-2. How We Use Data
-Your data is used to:
-- Provide personalized training features
-- Enable social and safety features (like live location)
-- Improve the app experience
-
-3. Data Sharing
-We do not sell your data. We may share data with third-party services like Google Fit or Strava for syncing purposes.
-
-4. Security
-We use Firebase Authentication and Firestore with secure access rules and encryption.
-
-5. Your Rights
-You can request to:
-- View your data
-- Delete your account and data
-- Opt-out of certain features
-
-6. Contact Us
-If you have any concerns, email us at: privacy@yourapp.com
-
-By using our app, you agree to this policy.
-
-Last updated: April 2025
-            ''',
-            style: const TextStyle(fontSize: 14, height: 1.5),
-          ),
+      appBar: AppBar(
+        title: const Text('Privacy Policy'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Last Updated: January 1, 2023',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '1. Information We Collect',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'We collect information you provide directly, including:'
+              '\n- Account information (name, email)'
+              '\n- Route data you create'
+              '\n- Location information when you use our mapping features',
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '2. How We Use Your Information',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Your information is used to:'
+              '\n- Provide and improve our services'
+              '\n- Personalize your experience'
+              '\n- Communicate with you about your account'
+              '\n- Ensure the security of our services',
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '3. Data Sharing',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'We do not sell your personal data. We may share information with:'
+              '\n- Service providers who assist our operations'
+              '\n- Law enforcement when required by law'
+              '\n- Other users only with your explicit consent',
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '4. Your Choices',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'You can:'
+              '\n- Review and update your account information'
+              '\n- Opt-out of promotional communications'
+              '\n- Delete your account at any time',
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '5. Security',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'We implement appropriate security measures to protect your data,'
+              ' but no system is completely secure. Please use strong passwords'
+              ' and keep your login information confidential.',
+            ),
+            const SizedBox(height: 30),
+            const Text(
+              'For any questions about this policy, please contact us at privacy@routeapp.com',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            ),
+          ],
         ),
       ),
     );

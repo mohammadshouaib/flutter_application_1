@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/Login/Signup/signinorsignup.dart';
 import 'package:flutter_application_1/Pages/SettingsPage/EditSettings.dart';
 import 'package:flutter_application_1/Pages/SettingsPage/helpSupport.dart';
 import 'package:flutter_application_1/Pages/SettingsPage/privacyPolicy.dart';
@@ -189,7 +190,7 @@ class _SettingsPageState extends State<SettingsPage> {
           // Logout Button
           Center(
             child: TextButton(
-              onPressed: _confirmLogout,
+              onPressed: () => _showLogoutConfirmation(context),
               child: const Text(
                 "Log Out",
                 style: TextStyle(color: Colors.red),
@@ -200,6 +201,105 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
+
+  Future<void> _showLogoutConfirmation(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Confirm Logout'),
+      content: const Text('Are you sure you want to log out?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text(
+            'Log Out',
+            style: TextStyle(color: Colors.red),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed == true) {
+    _performLogout();
+  }
+}
+
+Future<void> _performLogout() async {
+  // Show loading indicator
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(
+      child: CircularProgressIndicator(),
+    ),
+  );
+
+  try {
+    // 1. Clear any local authentication state
+    // Example: await LocalStorage.clearAll();
+    
+    // 2. Sign out from Firebase Authentication
+    await FirebaseAuth.instance.signOut();
+
+    // 3. Clear any cached data if needed
+    // Example: await CacheManager.instance.clearAll();
+
+    // 4. Close all open streams/subscriptions
+    // Example: _userSubscription?.cancel();
+
+    // 5. Navigate to login screen and clear stack
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+  context,
+  MaterialPageRoute(builder: (context) => SigninOrSignupScreen()),
+  (Route<dynamic> route) => false,
+);
+
+    }
+
+    // Optional: Show logout success message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logged out successfully'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
+  } catch (e, stackTrace) {
+    // Log the error for debugging
+    debugPrint('Logout error: $e');
+    debugPrint('Stack trace: $stackTrace');
+
+    // Close loading indicator if still mounted
+    if (mounted) Navigator.pop(context);
+
+    // Show user-friendly error message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Logout failed. Please try again.'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: _performLogout,
+          ),
+        ),
+      );
+    }
+  } finally {
+    // Ensure loading dialog is dismissed
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    }
+  }
+}
 
   Widget _buildProfileSection() {
     return Card(
@@ -399,13 +499,13 @@ class _SettingsPageState extends State<SettingsPage> {
   void _openHelpCenter() {
     Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => HelpSupportScreen()),
+          MaterialPageRoute(builder: (context) => HelpSupportPage()),
         );
   }
   void _openPrivacyPolicy() {
     Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => PrivacyPolicyScreen()),
+          MaterialPageRoute(builder: (context) => PrivacyPolicyPage()),
         );
   }
   void _showVersionInfo() {}
