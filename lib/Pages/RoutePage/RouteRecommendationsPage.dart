@@ -16,6 +16,7 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
   final  _auth = FirebaseAuth.instance;
   String _selectedTerrain = 'All';
   String? _currentUserId;
+  
 
   @override
   void initState() {
@@ -63,6 +64,7 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
                   return Route(
                     id: doc.id,
                     userRatings: data['userRatings'],
+                    location: data['location'],
                     name: data['name'] ?? 'Unnamed Route',
                     creator: data['creator'] ?? 'Unknown',
                     distance: (data['distance'] ?? 0).toDouble(),
@@ -321,97 +323,96 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
               // Rating and safety
               // Rating only (moved to right)
               Row(
-  children: [
-    // User's Rating Bar (left side)
-   RatingBar.builder(
-  initialRating: (route.userRatings?[_currentUserId] as num?)?.toDouble() ?? 0.0,
-  minRating: 1,
-  direction: Axis.horizontal,
-  allowHalfRating: true,
-  itemCount: 5,
-  itemSize: 20,
-  itemPadding: const EdgeInsets.symmetric(horizontal: 2),
-  itemBuilder: (context, _) => Icon(
-    Icons.star,
-    color: (route.userRatings?[_currentUserId] as num?) != null
-        ? Colors.blue
-        : Colors.grey[300],
-  ),
-  onRatingUpdate: (newRating) async {
-        if (_currentUserId == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please login to rate this route')),
-          );
-          return;
-        }
+                children: [
+                  // User's Rating Bar (left side)
+                RatingBar.builder(
+                initialRating: (route.userRatings?[_currentUserId] as num?)?.toDouble() ?? 0.0,
+                minRating: 1,
+                direction: Axis.horizontal,
+                allowHalfRating: true,
+                itemCount: 5,
+                itemSize: 20,
+                itemPadding: const EdgeInsets.symmetric(horizontal: 2),
+                itemBuilder: (context, _) => Icon(
+                  Icons.star,
+                  color: (route.userRatings?[_currentUserId] as num?) != null
+                      ? Colors.blue
+                      : Colors.grey[300],
+                ),
+                onRatingUpdate: (newRating) async {
+                      if (_currentUserId == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please login to rate this route')),
+                        );
+                        return;
+                      }
 
-        try {
-          final user = FirebaseAuth.instance.currentUser;
-          if (user == null) return;
+                      try {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null) return;
 
-          final routeRef = FirebaseFirestore.instance.collection('routes').doc(route.id);
-          final doc = await routeRef.get();
-          final currentData = doc.data() as Map<String, dynamic>;
-          final ratedBy = List<String>.from(currentData['ratedBy'] ?? []);
-          final previousRating = currentData['userRatings']?[user.uid] ?? 0.0;
+                        final routeRef = FirebaseFirestore.instance.collection('routes').doc(route.id);
+                        final doc = await routeRef.get();
+                        final currentData = doc.data() as Map<String, dynamic>;
+                        final ratedBy = List<String>.from(currentData['ratedBy'] ?? []);
+                        final previousRating = currentData['userRatings']?[user.uid] ?? 0.0;
 
-          final isRerating = ratedBy.contains(user.uid);
-          final currentTotalRating = route.rating * route.reviewCount;
-          final newReviewCount = isRerating ? route.reviewCount : route.reviewCount + 1;
-          final newRatingTotal = currentTotalRating - previousRating + newRating;
+                        final isRerating = ratedBy.contains(user.uid);
+                        final currentTotalRating = route.rating * route.reviewCount;
+                        final newReviewCount = isRerating ? route.reviewCount : route.reviewCount + 1;
+                        final newRatingTotal = currentTotalRating - previousRating + newRating;
 
-          await routeRef.update({
-            'rating': newRatingTotal / newReviewCount,
-            'reviewCount': isRerating ? route.reviewCount : FieldValue.increment(1),
-            'ratedBy': isRerating ? ratedBy : FieldValue.arrayUnion([user.uid]),
-            'userRatings.${user.uid}': newRating,
-          });
+                        await routeRef.update({
+                          'rating': newRatingTotal / newReviewCount,
+                          'reviewCount': isRerating ? route.reviewCount : FieldValue.increment(1),
+                          'ratedBy': isRerating ? ratedBy : FieldValue.arrayUnion([user.uid]),
+                          'userRatings.${user.uid}': newRating,
+                        });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(isRerating ? 'Rating updated!' : 'Thanks for rating!'),
-            ),
-          );
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to submit rating: ${e.toString()}')),
-          );
-        }
-      },
-    ),
-    
-    const Spacer(),
-    
-    // Average Rating Display (right side)
-    Row(
-      children: [
-        Text(
-          '${route.rating.toStringAsFixed(1)}',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const Text(
-          '/5',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '(${route.reviewCount})',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
-    ),
-  ],
-),
-
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(isRerating ? 'Rating updated!' : 'Thanks for rating!'),
+                          ),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to submit rating: ${e.toString()}')),
+                        );
+                      }
+                    },
+                  ),
+                  
+                  const Spacer(),
+                  
+                  // Average Rating Display (right side)
+                  Row(
+                    children: [
+                      Text(
+                        '${route.rating.toStringAsFixed(1)}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Text(
+                        '/5',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '(${route.reviewCount})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -504,17 +505,7 @@ void _showFullDescription(String description) {
       );
     }
   }
-
-
-  Future<void> _toggleFavorite(String routeId) async {
-    // Implement favorite functionality
-    // Example: await _firestore.collection('users').doc(userId).update({
-    //   'favorites': FieldValue.arrayUnion([routeId])
-    // });
-  }
-
 }
-
 
 
 class Route {
@@ -537,6 +528,7 @@ class Route {
   final int likeCount;
   final List<String> likedBy;
   final Map<String, dynamic>? userRatings;
+  final GeoPoint? location;
 
   
 
@@ -544,6 +536,7 @@ class Route {
     required this.id,
     required this.name,
     required this.creator,
+    required this.location,
     this.creatorId,
     String? creatorProfileImage,
     String? creatorFullName,
@@ -579,6 +572,7 @@ class Route {
     return Route(
       id: doc.id,
       name: data['name'] ?? 'Unnamed Route',
+      location: data['location'],
       creator: data['creator'] ?? 'Unknown',
       creatorId: data['creatorId'],
       distance: (data['distance'] ?? 0).toDouble(),
@@ -612,6 +606,7 @@ class Route {
           id: id,
           name: name,
           creator: creator,
+          location: location,
           creatorId: creatorId,
           creatorFullName: creatorData?['fullName'],
           creatorProfileImage: creatorData?['profileImageUrl'],
@@ -661,6 +656,7 @@ class Route {
       id: id,
       name: name ?? this.name,
       creator: creator ?? this.creator,
+      location: location,
       creatorId: creatorId ?? this.creatorId,
       creatorProfileImage: creatorProfileImage ?? _creatorProfileImage,
       creatorFullName: creatorFullName ?? _creatorFullName,

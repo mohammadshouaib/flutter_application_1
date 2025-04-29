@@ -144,38 +144,24 @@ class _SettingsPageState extends State<SettingsPage> {
 
           // App Preferences
           _buildSectionHeader("Preferences"),
-          _buildSettingSwitch("Dark Mode", isDarkMode, (value) {
-            _updateSetting('darkMode', value);
-          }),
-          _buildSettingSwitch("Voice Guidance", voiceGuidance, (value) {
-            _updateSetting('voiceGuidance', value);
-          }),
-          _buildSettingSwitch("Auto Pause", autoPause, (value) {
-            _updateSetting('autoPause', value);
-          }),
+          
           _buildUnitSelector("Distance Unit", ["km", "mi"], distanceUnit, (value) {
             _updateSetting('distanceUnit', value);
-          }),
-          _buildUnitSelector("Temperature Unit", ["°C", "°F"], temperatureUnit, (value) {
-            _updateSetting('temperatureUnit', value);
           }),
           const SizedBox(height: 24),
 
           // Safety Features
           _buildSectionHeader("Safety Features"),
-          _buildSettingSwitch("Safety Alerts", safetyAlerts, (value) {
-            _updateSetting('safetyAlerts', value);
-          }),
           _buildSettingTile(
             "Emergency Contacts",
             Icons.emergency,
             () => _navigateToEmergencyContacts(),
           ),
-          _buildSettingTile(
-            "Live Location Sharing",
-            Icons.location_on,
-            () => _toggleLiveLocation(),
-          ),
+          // _buildSettingTile(
+          //   "Live Location Sharing",
+          //   Icons.location_on,
+          //   () => _toggleLiveLocation(),
+          // ),
           const SizedBox(height: 24),
 
           // App Information
