@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/Pages/Settings/Settings.dart';
 
-import 'GroupCompetitionPage.dart';
+import 'GroupCompetitionPage/GroupCompetitionPage.dart';
 import 'HomeDashboard.dart';
 import 'RouteRecommendationsPage.dart';
 import 'TrainingPage/TrainingPlansPage.dart';
