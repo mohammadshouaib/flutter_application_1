@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/Pages/SettingsPage/EditSettings.dart';
+import 'package:flutter_application_1/Pages/SettingsPage/helpSupport.dart';
+import 'package:flutter_application_1/Pages/SettingsPage/privacyPolicy.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -394,8 +396,18 @@ class _SettingsPageState extends State<SettingsPage> {
   // Placeholder navigation methods
   void _navigateToEmergencyContacts() {}
   void _toggleLiveLocation() {}
-  void _openHelpCenter() {}
-  void _openPrivacyPolicy() {}
+  void _openHelpCenter() {
+    Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => HelpSupportScreen()),
+        );
+  }
+  void _openPrivacyPolicy() {
+    Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => PrivacyPolicyScreen()),
+        );
+  }
   void _showVersionInfo() {}
   void _confirmLogout() {}
 }
