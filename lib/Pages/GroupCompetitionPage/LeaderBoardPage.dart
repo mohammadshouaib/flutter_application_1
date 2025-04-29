@@ -569,17 +569,7 @@ void _showAddRunDialog(BuildContext context) {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    OutlinedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => GroupDetailsPage(groupId: groupId),
-                          ),
-                        );
-                      },
-                      child: const Text('View Group'),
-                    ),
+
                     ElevatedButton(
                       onPressed: () => _shareGroupInvite(context, groupId),
                       style: ElevatedButton.styleFrom(

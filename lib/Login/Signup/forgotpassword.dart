@@ -61,8 +61,8 @@ class ForgotPasswordScreen extends StatelessWidget {
             },
             style: ElevatedButton.styleFrom(
               elevation: 0,
-              backgroundColor: const Color(0xFF00BF6D),
-              foregroundColor: Colors.white,
+              backgroundColor: Colors.orange,
+              foregroundColor: Color(0xFFFDF6EC),
               minimumSize: const Size(double.infinity, 48),
               shape: const StadiumBorder(),
             ),
@@ -92,8 +92,9 @@ class LogoWithTitle extends StatelessWidget {
           child: Column(
             children: [
               SizedBox(height: constraints.maxHeight * 0.1),
-              Image.network(
-                "https://i.postimg.cc/nz0YBQcH/Logo-light.png",
+              Image.asset(
+                "assets/Logo.png",
+                width: 100,
                 height: 100,
               ),
               SizedBox(
