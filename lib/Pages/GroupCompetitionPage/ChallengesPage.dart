@@ -509,9 +509,11 @@ void _showCreateChallengeDialog(BuildContext context, String groupId) {
                       'endDate': Timestamp.fromDate(endDate!),
                       'groupId': groupId,
                       'createdAt': FieldValue.serverTimestamp(),
-                      'participants': [FirebaseAuth.instance.currentUser?.uid],
-                      'participantProgress': {
-                        FirebaseAuth.instance.currentUser?.uid: 0.0
+                      'participants': {
+                        FirebaseAuth.instance.currentUser?.uid: {
+                          'progress': 0.0,
+                          'completed': false
+                        }
                       }
                     });
 
@@ -547,8 +549,30 @@ class ChallengeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser?.uid;
-    final progress = challenge['participantProgress']?[currentUser] ?? 0.0;
-    final goal = challenge['goal'] ?? 1.0;
+
+    // Handle both List and Map formats for participants
+    final participants = challenge['participants'];
+    final int participantCount;
+    double progress = 0.0;
+    bool isCompleted = false;
+
+    if (participants is Map) {
+      participantCount = participants.length;
+      final userProgress = participants[currentUser] as Map<String, dynamic>? ?? {};
+      progress = (userProgress['progress'] ?? 0.0).toDouble();
+      isCompleted = (userProgress['completed'] ?? false) as bool;
+    } else if (participants is List) {
+      participantCount = participants.length;
+      // For list format, we can't track individual progress
+      progress = 0.0;
+      isCompleted = false;
+    } else {
+      participantCount = 0;
+      progress = 0.0;
+      isCompleted = false;
+    }
+
+    final goal = (challenge['goal'] ?? 1.0).toDouble();
     final percentage = progress / goal;
     final endDate = (challenge['endDate'] as Timestamp).toDate();
 
@@ -568,7 +592,7 @@ class ChallengeCard extends StatelessWidget {
                     color: completed ? Colors.grey : null,
                   ),
                 ),
-                if (completed)
+                if (completed || isCompleted)
                   const Chip(
                     label: Text('Completed'),
                     backgroundColor: Colors.green,
@@ -581,23 +605,14 @@ class ChallengeCard extends StatelessWidget {
               value: percentage > 1 ? 1 : percentage,
               backgroundColor: Colors.grey[200],
               valueColor: AlwaysStoppedAnimation(
-                completed ? Colors.green : Colors.orange,
+                (completed || isCompleted) ? Colors.green : Colors.orange,
               ),
               minHeight: 10,
             ),
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${progress.toStringAsFixed(1)}/${goal.toStringAsFixed(0)} km',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '${(percentage * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
+            Text(
+              '${progress.toStringAsFixed(1)}/${goal.toStringAsFixed(0)} km (${(percentage * 100).toStringAsFixed(0)}%)',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Row(
@@ -608,7 +623,7 @@ class ChallengeCard extends StatelessWidget {
                 const Spacer(),
                 const Icon(Icons.people_outline, size: 16),
                 const SizedBox(width: 4),
-                Text('${challenge['participants']?.length ?? 0} participants'),
+                Text('$participantCount participants'),
               ],
             ),
           ],

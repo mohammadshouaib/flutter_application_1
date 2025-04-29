@@ -11,6 +11,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   WeeklyReset.scheduleReset();
+  migrateChallenges();
   //await initializeTrainingPlans();
   runApp(MyApp());
 }
@@ -27,6 +28,34 @@ class MyApp extends StatelessWidget {
       home: SigninOrSignupScreen(),
     );
   }
+}
+Future<void> migrateChallenges() async {
+  final challenges = await FirebaseFirestore.instance
+      .collection('challenges')
+      .get();
+
+  final batch = FirebaseFirestore.instance.batch();
+
+  for (final challenge in challenges.docs) {
+    final data = challenge.data();
+    if (data['participants'] is List) {
+      final participantsList = data['participants'] as List<dynamic>;
+      final participantsMap = <String, dynamic>{};
+
+      for (final userId in participantsList) {
+        participantsMap[userId] = {
+          'progress': 0.0,
+          'completed': false
+        };
+      }
+
+      batch.update(challenge.reference, {
+        'participants': participantsMap
+      });
+    }
+  }
+
+  await batch.commit();
 }
 class WeeklyReset {
   static void scheduleReset() {

@@ -59,26 +59,13 @@ class RunService {
         final challengeData = challenge.data() as Map<String, dynamic>;
         final goal = (challengeData['goal'] ?? 0).toDouble();
 
-        // Safely get participants data
-        final participants = challengeData['participants'];
-        double currentProgress = 0.0;
-
-        if (participants is Map) {
-          currentProgress = (participants[userId]?['progress'] ?? 0.0).toDouble();
-        } else if (participants is List) {
-          // Convert list to map structure if needed
-          if (!participants.contains(userId)) {
-            batch.update(challenge.reference, {
-              'participants': {
-                userId: {'progress': 0.0, 'completed': false}
-              }
-            });
-          }
-          currentProgress = 0.0;
-        }
-
+        // Get current progress (handle null cases)
+        final participants = challengeData['participants'] as Map<String, dynamic>? ?? {};
+        final userProgress = participants[userId] as Map<String, dynamic>? ?? {};
+        final currentProgress = (userProgress['progress'] ?? 0.0).toDouble();
         final newProgress = currentProgress + distance;
 
+        // Update the challenge
         batch.update(
           challenge.reference,
           {
