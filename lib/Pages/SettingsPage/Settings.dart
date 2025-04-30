@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/Login/Signup/forgotpassword.dart';
 import 'package:flutter_application_1/Login/Signup/signinorsignup.dart';
 import 'package:flutter_application_1/Pages/SettingsPage/EditSettings.dart';
 import 'package:flutter_application_1/Pages/SettingsPage/helpSupport.dart';
@@ -149,6 +150,18 @@ class _SettingsPageState extends State<SettingsPage> {
           _buildProfileSection(),
           const SizedBox(height: 24),
 
+          _buildSettingTile(
+          "Change Password", 
+          Icons.lock_outline, 
+          () { 
+            Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => ForgotPasswordScreen()),
+                                );
+          },
+        ),
+
           // // App Preferences
           // _buildSectionHeader("Preferences"),
           
@@ -200,6 +213,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
+
+  
 
   Future<void> _showLogoutConfirmation(BuildContext context) async {
   final confirmed = await showDialog<bool>(
