@@ -9,6 +9,9 @@ class HelpSupportPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Help & Support'),
+        centerTitle: true,
+        backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -48,16 +51,16 @@ class HelpSupportPage extends StatelessWidget {
               label: 'Call Support: +1 (555) 123-4567',
               onTap: () => _launchPhone('+15551234567'),
             ),
-            _buildContactOption(
-              icon: Icons.chat,
-              label: 'Live Chat',
-              onTap: () => _showChatDialog(context),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'App Version: 1.0.0',
-              style: TextStyle(color: Colors.grey),
-            ),
+            // _buildContactOption(
+            //   icon: Icons.chat,
+            //   label: 'Live Chat',
+            //   onTap: () => _showChatDialog(context),
+            // ),
+            // const SizedBox(height: 20),
+            // const Text(
+            //   'App Version: 1.0.0',
+            //   style: TextStyle(color: Colors.grey),
+            // ),
           ],
         ),
       ),

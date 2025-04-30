@@ -19,6 +19,11 @@ class _TrainingPlansPageState extends State<TrainingPlansPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Training Plans'),
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  centerTitle: true,
+
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -329,7 +334,10 @@ class _TrainingPlanDetailsPageState extends State<TrainingPlanDetailsPage> {
       context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          appBar: AppBar(title: Text('Week $weekNum Details')),
+          appBar: AppBar(title: Text('Week $weekNum Details'),
+          centerTitle: true,
+        backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,),
           body: WeekWorkoutsView(
             weekNum: weekNum,
             weekData: weekData,
@@ -345,7 +353,12 @@ class _TrainingPlanDetailsPageState extends State<TrainingPlanDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(title: Text(widget.title),
+      centerTitle: true,
+        backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+      ),
+      
       body: FutureBuilder<Map<String, dynamic>>(
         future: _planData,
         builder: (context, snapshot) {
@@ -481,6 +494,7 @@ class _WeekWorkoutsViewState extends State<WeekWorkoutsView> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
+      
       itemCount: workouts.length,
       itemBuilder: (context, index) {
         final workout = workouts[index];

@@ -137,6 +137,10 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(
         title: const Text("Settings"),
         centerTitle: true,
+        backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  automaticallyImplyLeading: false,
+
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -160,11 +164,6 @@ class _SettingsPageState extends State<SettingsPage> {
             Icons.emergency,
             () => _navigateToEmergencyContacts(),
           ),
-          // _buildSettingTile(
-          //   "Live Location Sharing",
-          //   Icons.location_on,
-          //   () => _toggleLiveLocation(),
-          // ),
           const SizedBox(height: 24),
 
           // App Information
@@ -325,7 +324,7 @@ Future<void> _performLogout() async {
                         : (profileImageUrl != null
                             ? NetworkImage(profileImageUrl!)
                             : const NetworkImage(
-                                "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200",
+                                "https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg",
                               )) as ImageProvider,
                   ),
                   Container(

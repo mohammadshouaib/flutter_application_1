@@ -18,6 +18,11 @@ class GroupCompetitionPage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Group Competition'),
+          backgroundColor: Colors.orange,
+          centerTitle: true,
+                  foregroundColor: Colors.white,
+                  automaticallyImplyLeading: false,
+
           actions: [
             IconButton(
               icon: const Icon(Icons.add),

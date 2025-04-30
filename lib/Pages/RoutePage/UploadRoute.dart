@@ -214,6 +214,9 @@ Future<void> _getCurrentLocation() async {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Upload New Route'),
+        centerTitle: true,
+        backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
         actions: [
           if (_isUploading)
             Padding(

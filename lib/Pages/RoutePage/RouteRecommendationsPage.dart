@@ -35,6 +35,10 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
       appBar: AppBar(
         title: const Text('Running Routes'),
         automaticallyImplyLeading: false,
+        centerTitle: true,
+        backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+
       ),
       body: Column(
         children: [

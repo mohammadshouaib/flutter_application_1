@@ -8,6 +8,9 @@ class PrivacyPolicyPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Privacy Policy'),
+        centerTitle: true,
+        backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -15,7 +18,7 @@ class PrivacyPolicyPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Last Updated: January 1, 2023',
+              'Last Updated: Wednesday 30, 2025',
               style: TextStyle(fontStyle: FontStyle.italic),
             ),
             const SizedBox(height: 20),
