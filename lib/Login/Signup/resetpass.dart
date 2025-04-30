@@ -66,7 +66,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFDF6EC),
+      backgroundColor: Colors.white,
       body: LogoWithTitle(
         title: "Reset Password",
         children: [
@@ -95,7 +95,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     onPressed: _sendResetEmail,
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
-                      backgroundColor: Color(0xFFFDF6EC),
+                      backgroundColor: const Color(0xFF00BF6D),
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 48),
                       shape: const StadiumBorder(),
@@ -104,7 +104,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ),
           ],
           if (_emailSent) ...[
-            const Icon(Icons.check_circle, color: Colors.orange, size: 50),
+            const Icon(Icons.check_circle, color: Colors.green, size: 50),
             const SizedBox(height: 20),
             const Text(
               'Password reset email sent!',

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_1/Login/Signup/emailVerification.dart';
 import 'package:flutter_application_1/Login/Signup/signin.dart';
 import 'package:flutter_application_1/services/auth_service.dart';
 
@@ -27,43 +28,82 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _phoneController.dispose();
     super.dispose();
   }
+
+Future<void> sendVerificationEmail() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+      print('Verification email sent to ${user.email}');
+    }
+  } catch (e) {
+    print('Error sending verification email: $e');
+  }
+}
+
   Future<void> _signUp() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+  if (_formKey.currentState!.validate()) {
+    _formKey.currentState!.save();
 
-      // Check if passwords match
-      if (_passwordController.text != _confirmPasswordController.text) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Passwords do not match")),
-        );
-        return;
-      }
-
-      // Call Firebase Authentication
-      User? user = await _authService.signUp(
-        _fullNameController.text.trim(),
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-        _phoneController.text.trim()
+    // Check if passwords match
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Passwords do not match")),
       );
+      return;
+    }
 
-      if (user != null) {
-        // Navigate to Sign In Screen on Success
+    // Call Firebase Authentication
+    User? user = await _authService.signUp(
+      _fullNameController.text.trim(),
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+      _phoneController.text.trim()
+    );
+
+    if (user != null) {
+      // Send verification email
+      try {
+        await user.sendEmailVerification();
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Signup Successful! Please login.")),
+          const SnackBar(
+            content: Text("Signup Successful! Please check your email for verification."),
+            duration: Duration(seconds: 5), // Longer duration for important message
+          ),
+        );
+        
+        // Optional: You might want to navigate to a different screen that explains
+        // email verification is needed before they can login
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => EmailVerificationScreen(
+            email: _emailController.text.trim(),
+          )),
+        );
+        
+      } catch (e) {
+        // Verification email failed to send, but signup was successful
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Signup successful but verification email failed: ${e.toString()}"),
+            duration: Duration(seconds: 5),
+          ),
         );
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => SignInScreen()),
         );
-      } else {
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Signup Failed")),
-        );
       }
+    } else {
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Signup Failed")),
+      );
     }
   }
+}
 
   @override
 Widget build(BuildContext context) {

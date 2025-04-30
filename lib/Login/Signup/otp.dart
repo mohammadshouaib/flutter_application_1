@@ -16,7 +16,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFDF6EC),
+      backgroundColor: Colors.white,
       body: LogoWithTitle(
         title: 'Verification',
         subText: "Email Verification code has been sent",
@@ -190,8 +190,8 @@ class _OtpFormState extends State<OtpForm> {
                   onPressed: _verifyOtp,
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Color(0xFFFDF6EC),
+                    backgroundColor: const Color(0xFF00BF6D),
+                    foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 48),
                     shape: const StadiumBorder(),
                   ),

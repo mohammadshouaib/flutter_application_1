@@ -7,19 +7,7 @@ import 'RoutePage/RouteRecommendationsPage.dart';
 import 'TrainingPage/TrainingPlansPage.dart';
 import 'package:flutter_application_1/Profile/profile.dart';
 
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'RunTogether',
-      theme: ThemeData(
-        primarySwatch: Colors.orange,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: MainNavigationPage(),
-    );
-  }
-}
+
 
 class MainNavigationPage extends StatefulWidget {
   @override

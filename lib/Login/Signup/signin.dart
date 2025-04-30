@@ -48,7 +48,6 @@ class _SignInScreenState extends State<SignInScreen> {
 
         if (user != null && mounted) {
 
-
           if (mounted) {
             Navigator.pushReplacement(
               context,
