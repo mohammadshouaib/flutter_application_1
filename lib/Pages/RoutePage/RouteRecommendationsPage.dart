@@ -16,11 +16,11 @@ class RouteFeedPage extends StatefulWidget {
 
 class _RouteFeedPageState extends State<RouteFeedPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final  _auth = FirebaseAuth.instance;
+  final _auth = FirebaseAuth.instance;
   String _selectedTerrain = 'All';
   String? _currentUserId;
   bool _showLocationDetails = false;
-  
+  bool _showMyRoutesOnly = false; // Add this line
 
   @override
   void initState() {
@@ -28,31 +28,52 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
     _currentUserId = _auth.currentUser?.uid;
   }
 
+  // Add this new filter widget
+  Widget _buildUserRoutesFilter() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: FilterChip(
+        label: const Text('My Routes'),
+        selected: _showMyRoutesOnly,
+        onSelected: (selected) {
+          setState(() {
+            _showMyRoutesOnly = selected;
+          });
+        },
+      ),
+    );
+  }
+
+  // Modify your build method to include the new filter
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
       appBar: AppBar(
         title: const Text('Running Routes'),
         automaticallyImplyLeading: false,
         centerTitle: true,
         backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-
+        foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
           // Terrain filter chips
           _buildTerrainFilter(),
+          // Add the new user routes filter
+          _buildUserRoutesFilter(),
           
           // StreamBuilder to fetch and display routes
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _selectedTerrain == 'All'
-                  ? _firestore.collection('routes').snapshots()
-                  : _firestore.collection('routes')
-                      .where('terrain', isEqualTo: _selectedTerrain)
-                      .snapshots(),
+              stream: _showMyRoutesOnly
+                  ? _firestore.collection('routes')
+                      .where('creatorId', isEqualTo: _currentUserId)
+                      .snapshots()
+                  : _selectedTerrain == 'All'
+                      ? _firestore.collection('routes').snapshots()
+                      : _firestore.collection('routes')
+                          .where('terrain', isEqualTo: _selectedTerrain)
+                          .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
@@ -63,42 +84,52 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No routes found'));
+                  return Center(
+                    child: Text(
+                      _showMyRoutesOnly 
+                          ? 'You haven\'t created any routes yet'
+                          : 'No routes found',
+                    ),
+                  );
                 }
 
                 // Convert Firestore docs to Route objects
                 final routes = snapshot.data!.docs.map((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   return Route(
-      id: doc.id,
-      name: data['name'] ?? 'Unnamed Route',
-      location: data['location'],
-      creator: data['creator'] ?? 'Unknown',
-      creatorId: data['creatorId'],
-      distance: (data['distance'] ?? 0).toDouble(),
-      difficulty: data['difficulty'] ?? 'Medium',
-      terrain: data['terrain'] ?? 'Mixed',
-      description: data['description'],
-      userRatings: data['userRatings'],
-      rating: (data['rating'] ?? 0).toDouble(),
-      reviewCount: data['reviewCount'] ?? 0,
-      safetyRating: (data['safetyRating'] ?? 0).toDouble(),
-      isWellLit: data['isWellLit'] ?? false,
-      hasLowTraffic: data['hasLowTraffic'] ?? false,
-      imageUrls: List<String>.from(data['imageUrls'] ?? []),
-      likeCount: data['likeCount'] ?? 0,
-      likedBy: List<String>.from(data['likedBy'] ?? []),
-      address: data['address'],
-      pathCoordinates: data['pathCoordinates']?.map<GeoPoint>(
-        (point) => GeoPoint(point['latitude'], point['longitude'])),
-      mapImageUrl: data['mapImageUrl']
-    );
-              }).toList();
+                    id: doc.id,
+                    name: data['name'] ?? 'Unnamed Route',
+                    location: data['location'],
+                    creator: data['creator'] ?? 'Unknown',
+                    creatorId: data['creatorId'],
+                    distance: (data['distance'] ?? 0).toDouble(),
+                    difficulty: data['difficulty'] ?? 'Medium',
+                    terrain: data['terrain'] ?? 'Mixed',
+                    description: data['description'],
+                    userRatings: data['userRatings'],
+                    rating: (data['rating'] ?? 0).toDouble(),
+                    reviewCount: data['reviewCount'] ?? 0,
+                    safetyRating: (data['safetyRating'] ?? 0).toDouble(),
+                    isWellLit: data['isWellLit'] ?? false,
+                    hasLowTraffic: data['hasLowTraffic'] ?? false,
+                    imageUrls: List<String>.from(data['imageUrls'] ?? []),
+                    likeCount: data['likeCount'] ?? 0,
+                    likedBy: List<String>.from(data['likedBy'] ?? []),
+                    address: data['address'],
+                    pathCoordinates: data['pathCoordinates']?.map<GeoPoint>(
+                      (point) => GeoPoint(point['latitude'], point['longitude'])),
+                    mapImageUrl: data['mapImageUrl']
+                  );
+                }).toList();
 
                 return ListView.builder(
                   itemCount: routes.length,
                   itemBuilder: (context, index) {
-                    return _buildRouteCard(routes[index]);
+                    final route = routes[index];
+                    return _buildRouteCard(
+                      route,
+                      showActions: _showMyRoutesOnly, // Pass this flag
+                    );
                   },
                 );
               },
@@ -107,19 +138,52 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
         onPressed: () {
           Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => UploadRoutePage(),
-                        ),
+            context,
+            MaterialPageRoute(
+              builder: (context) => UploadRoutePage(),
+            ),
           );
         },
         backgroundColor: Colors.orange,
       ),
-
     );
+  }
+
+  // Add this new method for deleting routes
+  Future<void> _deleteRoute(Route route) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Route?'),
+        content: Text('Are you sure you want to delete "${route.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _firestore.collection('routes').doc(route.id).delete();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Route deleted successfully')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete route: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   void _openFullMap(Route route) {
@@ -205,19 +269,19 @@ void _launchNavigation(Route route) async {
     );
   }
 
-  Widget _buildRouteCard(Route route) {
-  final isLiked = _currentUserId != null && route.likedBy.contains(_currentUserId);
-  final pageController = PageController(viewportFraction: 1); // Shows 100% of next image
+  Widget _buildRouteCard(Route route, {bool showActions = false}) {
+    final isLiked = _currentUserId != null && route.likedBy.contains(_currentUserId);
+    final pageController = PageController(viewportFraction: 1);
 
-  return Card(
-    margin: const EdgeInsets.all(8),
-    elevation: 2,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    return Card(
+      margin: const EdgeInsets.all(8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
         // Image carousel with controlled scrolling
         SizedBox(
           height: 180,
@@ -291,8 +355,7 @@ void _launchNavigation(Route route) async {
                     child: Icon(Icons.terrain, size: 50, color: Colors.grey),
                   ),
                 ),
-        ),
-        
+        ),  
         // Rest of your existing card content
         Padding(
           padding: const EdgeInsets.all(12),
@@ -309,18 +372,24 @@ void _launchNavigation(Route route) async {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          isLiked ? Icons.favorite : Icons.favorite_border,
-                          color: isLiked ? Colors.red : null,
+                  if (showActions)
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _deleteRoute(route),
+                    )
+                  else
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            isLiked ? Icons.favorite : Icons.favorite_border,
+                            color: isLiked ? Colors.red : null,
+                          ),
+                          onPressed: () => _toggleLike(route),
                         ),
-                        onPressed: () => _toggleLike(route),
-                      ),
-                      Text(route.likeCount.toString()),
-                    ],
-                  ),
+                        Text(route.likeCount.toString()),
+                      ],
+                    ),
                 ],
               ),
               // Creator and distance

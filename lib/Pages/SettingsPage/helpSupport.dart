@@ -43,13 +43,13 @@ class HelpSupportPage extends StatelessWidget {
             const SizedBox(height: 15),
             _buildContactOption(
               icon: Icons.email,
-              label: 'Email Support',
+              label: 'Email Support: capstonefinalyearproject@gmail.com',
               onTap: () => _launchEmail(),
             ),
             _buildContactOption(
               icon: Icons.phone,
-              label: 'Call Support: +1 (555) 123-4567',
-              onTap: () => _launchPhone('+15551234567'),
+              label: 'Call Support: +961 - 70292872',
+              onTap: () => _launchPhone('+96170292872'),
             ),
             // _buildContactOption(
             //   icon: Icons.chat,
@@ -102,7 +102,7 @@ class HelpSupportPage extends StatelessWidget {
   Future<void> _launchEmail() async {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
-      path: 'support@routeapp.com',
+      path: 'capstonefinalyearproject@gmail.com',
       queryParameters: {'subject': 'Route App Support'},
     );
     

@@ -149,22 +149,22 @@ class _SettingsPageState extends State<SettingsPage> {
           _buildProfileSection(),
           const SizedBox(height: 24),
 
-          // App Preferences
-          _buildSectionHeader("Preferences"),
+          // // App Preferences
+          // _buildSectionHeader("Preferences"),
           
-          _buildUnitSelector("Distance Unit", ["km", "mi"], distanceUnit, (value) {
-            _updateSetting('distanceUnit', value);
-          }),
+          // _buildUnitSelector("Distance Unit", ["km", "mi"], distanceUnit, (value) {
+          //   _updateSetting('distanceUnit', value);
+          // }),
           const SizedBox(height: 24),
 
           // Safety Features
-          _buildSectionHeader("Safety Features"),
-          _buildSettingTile(
-            "Emergency Contacts",
-            Icons.emergency,
-            () => _navigateToEmergencyContacts(),
-          ),
-          const SizedBox(height: 24),
+          // _buildSectionHeader("Safety Features"),
+          // _buildSettingTile(
+          //   "Emergency Contacts",
+          //   Icons.emergency,
+          //   () => _navigateToEmergencyContacts(),
+          // ),
+          // const SizedBox(height: 24),
 
           // App Information
           _buildSectionHeader("About"),
