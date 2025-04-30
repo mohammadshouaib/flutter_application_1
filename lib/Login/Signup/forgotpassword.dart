@@ -57,7 +57,7 @@ Future<bool> isEmailRegisteredInFirestore(String email) async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Color(0xFFFDF6EC),
       body: LogoWithTitle(
         title: 'Forgot Password',
         subText:
@@ -101,7 +101,6 @@ Future<bool> isEmailRegisteredInFirestore(String email) async {
                 final exists = await isEmailRegistered(email);
                 
                 if (exists) {
-                  print("ALOOOO??");
                   forgotPasswordService.sendOtpToEmail(emailController.text);
                   if (_formKey.currentState!.validate()) {
                     _formKey.currentState!.save();
@@ -119,7 +118,7 @@ Future<bool> isEmailRegisteredInFirestore(String email) async {
             },
             style: ElevatedButton.styleFrom(
               elevation: 0,
-              backgroundColor: const Color(0xFF00BF6D),
+              backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 48),
               shape: const StadiumBorder(),
@@ -150,10 +149,11 @@ class LogoWithTitle extends StatelessWidget {
           child: Column(
             children: [
               SizedBox(height: constraints.maxHeight * 0.1),
-              Image.network(
-                "https://i.postimg.cc/nz0YBQcH/Logo-light.png",
-                height: 100,
-              ),
+              Image.asset(
+                        "assets/Logo.png",
+                        width: 140,
+                        height: 140,
+                      ),
               SizedBox(
                 height: constraints.maxHeight * 0.1,
                 width: double.infinity,

@@ -66,7 +66,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+backgroundColor:  Color(0xFFFDF6EC),
       body: LogoWithTitle(
         title: "Reset Password",
         children: [
@@ -95,8 +95,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     onPressed: _sendResetEmail,
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
-                      backgroundColor: const Color(0xFF00BF6D),
-                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+
                       minimumSize: const Size(double.infinity, 48),
                       shape: const StadiumBorder(),
                     ),
@@ -123,7 +124,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   (route) => route is MaterialPageRoute && 
              route.builder(context) is SignInScreen
 ),
-              child: const Text('Return to login'),
+              child: const Text(
+  'Return to login',
+  style: TextStyle(color: Colors.orange),
+),
+
             ),
           ]
         ],
@@ -152,10 +157,11 @@ class LogoWithTitle extends StatelessWidget {
           child: Column(
             children: [
               SizedBox(height: constraints.maxHeight * 0.1),
-              Image.network(
-                "https://i.postimg.cc/nz0YBQcH/Logo-light.png",
-                height: 100,
-              ),
+              Image.asset(
+                        "assets/Logo.png",
+                        width: 140,
+                        height: 140,
+                      ),
               SizedBox(
                 height: constraints.maxHeight * 0.1,
                 width: double.infinity,
