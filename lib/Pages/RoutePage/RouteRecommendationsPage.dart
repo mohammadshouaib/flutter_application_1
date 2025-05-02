@@ -19,8 +19,8 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
   final _auth = FirebaseAuth.instance;
   String _selectedTerrain = 'All';
   String? _currentUserId;
-  bool _showLocationDetails = false;
   bool _showMyRoutesOnly = false; // Add this line
+  
 
   @override
   void initState() {
@@ -63,78 +63,69 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
           _buildUserRoutesFilter(),
           
           // StreamBuilder to fetch and display routes
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _showMyRoutesOnly
-                  ? _firestore.collection('routes')
-                      .where('creatorId', isEqualTo: _currentUserId)
-                      .snapshots()
-                  : _selectedTerrain == 'All'
-                      ? _firestore.collection('routes').snapshots()
-                      : _firestore.collection('routes')
-                          .where('terrain', isEqualTo: _selectedTerrain)
-                          .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
+Expanded(
+  child: StreamBuilder<QuerySnapshot>(
+    stream: _buildCombinedRouteStream(),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return Center(child: Text('Error: ${snapshot.error}'));
+      }
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      _showMyRoutesOnly 
-                          ? 'You haven\'t created any routes yet'
-                          : 'No routes found',
-                    ),
-                  );
-                }
-
-                // Convert Firestore docs to Route objects
-                final routes = snapshot.data!.docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return Route(
-                    id: doc.id,
-                    name: data['name'] ?? 'Unnamed Route',
-                    location: data['location'],
-                    creator: data['creator'] ?? 'Unknown',
-                    creatorId: data['creatorId'],
-                    distance: (data['distance'] ?? 0).toDouble(),
-                    difficulty: data['difficulty'] ?? 'Medium',
-                    terrain: data['terrain'] ?? 'Mixed',
-                    description: data['description'],
-                    userRatings: data['userRatings'],
-                    rating: (data['rating'] ?? 0).toDouble(),
-                    reviewCount: data['reviewCount'] ?? 0,
-                    safetyRating: (data['safetyRating'] ?? 0).toDouble(),
-                    isWellLit: data['isWellLit'] ?? false,
-                    hasLowTraffic: data['hasLowTraffic'] ?? false,
-                    imageUrls: List<String>.from(data['imageUrls'] ?? []),
-                    likeCount: data['likeCount'] ?? 0,
-                    likedBy: List<String>.from(data['likedBy'] ?? []),
-                    address: data['address'],
-                    pathCoordinates: data['pathCoordinates']?.map<GeoPoint>(
-                      (point) => GeoPoint(point['latitude'], point['longitude'])),
-                    mapImageUrl: data['mapImageUrl']
-                  );
-                }).toList();
-
-                return ListView.builder(
-                  itemCount: routes.length,
-                  itemBuilder: (context, index) {
-                    final route = routes[index];
-                    return _buildRouteCard(
-                      route,
-                      showActions: _showMyRoutesOnly, // Pass this flag
-                    );
-                  },
-                );
-              },
-            ),
+      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        return Center(
+          child: Text(
+            _showMyRoutesOnly 
+                ? 'You haven\'t created any routes yet'
+                : 'No routes found',
           ),
+        );
+      }
+
+      // Convert Firestore docs to Route objects
+      final routes = snapshot.data!.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return Route(
+          id: doc.id,
+          name: data['name'] ?? 'Unnamed Route',
+          location: data['location'],
+          creator: data['creator'] ?? 'Unknown',
+          creatorId: data['creatorId'],
+          distance: (data['distance'] ?? 0).toDouble(),
+          difficulty: data['difficulty'] ?? 'Medium',
+          terrain: data['terrain'] ?? 'Mixed',
+          description: data['description'],
+          userRatings: data['userRatings'],
+          rating: (data['rating'] ?? 0).toDouble(),
+          reviewCount: data['reviewCount'] ?? 0,
+          safetyRating: (data['safetyRating'] ?? 0).toDouble(),
+          isWellLit: data['isWellLit'] ?? false,
+          hasLowTraffic: data['hasLowTraffic'] ?? false,
+          imageUrls: List<String>.from(data['imageUrls'] ?? []),
+          likedBy: List<String>.from(data['likedBy'] ?? []),
+          address: data['address'],
+          pathCoordinates: data['pathCoordinates']?.map<GeoPoint>(
+            (point) => GeoPoint(point['latitude'], point['longitude'])),
+          mapImageUrl: data['mapImageUrl']
+        );
+      }).toList();
+
+      return ListView.builder(
+        itemCount: routes.length,
+        itemBuilder: (context, index) {
+          final route = routes[index];
+          return _buildRouteCard(
+            route,
+            showActions: _showMyRoutesOnly,
+          );
+        },
+      );
+    },
+  ),
+),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -151,6 +142,23 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
       ),
     );
   }
+
+  // Add this helper method to your state class
+Stream<QuerySnapshot> _buildCombinedRouteStream() {
+  Query query = _firestore.collection('routes');
+  
+  // Apply creator filter if "My Routes" is enabled
+  if (_showMyRoutesOnly && _currentUserId != null) {
+    query = query.where('creatorId', isEqualTo: _currentUserId);
+  }
+  
+  // Apply terrain filter if not 'All'
+  if (_selectedTerrain != 'All') {
+    query = query.where('terrain', isEqualTo: _selectedTerrain);
+  }
+  
+  return query.snapshots();
+}
 
   // Add this new method for deleting routes
   Future<void> _deleteRoute(Route route) async {
@@ -272,6 +280,7 @@ void _launchNavigation(Route route) async {
   Widget _buildRouteCard(Route route, {bool showActions = false}) {
     final isLiked = _currentUserId != null && route.likedBy.contains(_currentUserId);
     final pageController = PageController(viewportFraction: 1);
+    final showLocationDetails = _expandedRouteStates[route.id] ?? false;
 
     return Card(
       margin: const EdgeInsets.all(8),
@@ -288,7 +297,12 @@ void _launchNavigation(Route route) async {
           child: route.imageUrls.isNotEmpty
               ? Stack(
                   children: [
-                    PageView.builder(
+                    GestureDetector(
+                      onDoubleTap: (){
+                        if(!route.likedBy.contains(_currentUserId)){
+                          _toggleLike(route);}
+                      },
+                      child: PageView.builder(
                       controller: pageController,
                       itemCount: route.imageUrls.length,
                       physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
@@ -324,6 +338,7 @@ void _launchNavigation(Route route) async {
                         );
                       },
                     ),
+                  ),
                     // Position indicators
                     if (route.imageUrls.length > 1)
                       Positioned(
@@ -356,6 +371,7 @@ void _launchNavigation(Route route) async {
                   ),
                 ),
         ),  
+        
         // Rest of your existing card content
         Padding(
           padding: const EdgeInsets.all(12),
@@ -387,11 +403,12 @@ void _launchNavigation(Route route) async {
                           ),
                           onPressed: () => _toggleLike(route),
                         ),
-                        Text(route.likeCount.toString()),
+                        Text(route.likedBy.length.toString()),
                       ],
                     ),
                 ],
               ),
+              
               // Creator and distance
               Text(
                 'By ${route.creator} • ${route.distance} km',
@@ -431,7 +448,6 @@ void _launchNavigation(Route route) async {
                   ],
                 ),
                 
-              
               // Tags (difficulty, terrain, features)
               Wrap(
                 spacing: 8,
@@ -459,11 +475,9 @@ void _launchNavigation(Route route) async {
               
               const SizedBox(height: 8),
               
-              // Rating and safety
-              // Rating only (moved to right)
+              // Rating
               Row(
                 children: [
-                  // User's Rating Bar (left side)
                 RatingBar.builder(
                 initialRating: (route.userRatings?[_currentUserId] as num?)?.toDouble() ?? 0.0,
                 minRating: 1,
@@ -553,129 +567,129 @@ void _launchNavigation(Route route) async {
                 ],
               ),
               // Location section
-    if (route.location != null) ...[
-  const Divider(),
-  const SizedBox(height: 8),
-  
-  // Clickable header to toggle details
-  InkWell(
-    onTap: _toggleLocationDetails,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          const Icon(Icons.location_on, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'Location Details',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).primaryColor,
-            ),
-          ),
-          const Spacer(),
-          Icon(
-            _showLocationDetails ? Icons.expand_less : Icons.expand_more,
-            size: 20,
-          ),
-        ],
-      ),
-    ),
-  ),
-  
-  // Expandable content
-  AnimatedCrossFade(
-    duration: const Duration(milliseconds: 300),
-    crossFadeState: _showLocationDetails 
-        ? CrossFadeState.showSecond 
-        : CrossFadeState.showFirst,
-    firstChild: const SizedBox.shrink(),
-    secondChild: Column(
-      children: [
-        // Mini map preview
-        Container(
-          height: 150,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.grey[200],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(
-                  route.location!.latitude,
-                  route.location!.longitude,
-                ),
-                zoom: 14,
-              ),
-              markers: {
-                Marker(
-                  markerId: const MarkerId('routeLocation'),
-                  position: LatLng(
-                    route.location!.latitude,
-                    route.location!.longitude,
+                if (route.location != null) ...[
+                const Divider(),
+                const SizedBox(height: 8),
+                
+                // Clickable header to toggle details
+                InkWell(
+                  onTap: () => _toggleLocationDetails(route),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Location Details',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          showLocationDetails ? Icons.expand_less : Icons.expand_more,
+                          size: 20,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              },
-              zoomControlsEnabled: false,
-              scrollGesturesEnabled: false,
-              tiltGesturesEnabled: false,
-              rotateGesturesEnabled: false,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        
-        // Address and actions
-        if (route.address != null) ...[
-          Row(
-            children: [
-              const Icon(Icons.place, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  route.address!,
-                  style: const TextStyle(fontSize: 14),
+                
+                // Expandable content
+                AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 300),
+                    crossFadeState: showLocationDetails 
+                        ? CrossFadeState.showSecond 
+                        : CrossFadeState.showFirst,
+                    firstChild: const SizedBox.shrink(),
+                    secondChild: Column(
+                    children: [
+                      // Mini map preview
+                      Container(
+                        height: 150,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.grey[200],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: GoogleMap(
+                            initialCameraPosition: CameraPosition(
+                              target: LatLng(
+                                route.location!.latitude,
+                                route.location!.longitude,
+                              ),
+                              zoom: 14,
+                            ),
+                            markers: {
+                              Marker(
+                                markerId: const MarkerId('routeLocation'),
+                                position: LatLng(
+                                  route.location!.latitude,
+                                  route.location!.longitude,
+                                ),
+                              ),
+                            },
+                            zoomControlsEnabled: false,
+                            scrollGesturesEnabled: false,
+                            tiltGesturesEnabled: false,
+                            rotateGesturesEnabled: false,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Address and actions
+                      if (route.address != null) ...[
+                        Row(
+                          children: [
+                            const Icon(Icons.place, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                route.address!,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      
+                      // Action buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.directions, size: 18),
+                              label: const Text('Navigate'),
+                              onPressed: () => _launchNavigation(route),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.map, size: 18),
+                              label: const Text('View Map'),
+                              onPressed: () => _openFullMap(route),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-        ],
-        
-        // Action buttons
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.directions, size: 18),
-                label: const Text('Navigate'),
-                onPressed: () => _launchNavigation(route),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.map, size: 18),
-                label: const Text('View Map'),
-                onPressed: () => _openFullMap(route),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  ),
-],
+              ],
             ],
           ),
         ),
@@ -684,11 +698,14 @@ void _launchNavigation(Route route) async {
   );
 }
 
-void _toggleLocationDetails() {
-    setState(() {
-      _showLocationDetails = !_showLocationDetails;
-    });
-  }
+final Map<String, bool> _expandedRouteStates = {};
+
+void _toggleLocationDetails(Route route) {
+  setState(() {
+    // Toggle the state for this specific route
+    _expandedRouteStates[route.id] = !(_expandedRouteStates[route.id] ?? false);
+  });
+}
 
 void _showFullDescription(String description) {
   showModalBottomSheet(
@@ -754,7 +771,6 @@ void _showFullDescription(String description) {
 
         final currentLikedBy = List<String>.from(doc['likedBy'] ?? []);
         final newLikedBy = [...currentLikedBy];
-        final newLikeCount = doc['likeCount'] ?? 0;
 
         if (isLiked) {
           newLikedBy.remove(_currentUserId);
@@ -764,7 +780,6 @@ void _showFullDescription(String description) {
 
         transaction.update(routeRef, {
           'likedBy': newLikedBy,
-          'likeCount': isLiked ? newLikeCount - 1 : newLikeCount + 1,
         });
       });
     } catch (e) {
@@ -776,7 +791,7 @@ void _showFullDescription(String description) {
 }
 
 
-class Route {
+ class Route {
   final String id;
   final String name;
   final String creator;
@@ -793,7 +808,6 @@ class Route {
   final bool isWellLit;
   final bool hasLowTraffic;
   final List<String> imageUrls;
-  final int likeCount;
   final List<String> likedBy;
   final Map<String, dynamic>? userRatings;
   final GeoPoint? location; // Stores latitude/longitude
@@ -824,7 +838,6 @@ class Route {
     required this.isWellLit,
     required this.hasLowTraffic,
     required this.imageUrls,
-    required this.likeCount,
     required this.userRatings,
     required this.likedBy,
   }) : _creatorProfileImage = creatorProfileImage,
@@ -860,7 +873,6 @@ class Route {
       isWellLit: data['isWellLit'] ?? false,
       hasLowTraffic: data['hasLowTraffic'] ?? false,
       imageUrls: List<String>.from(data['imageUrls'] ?? []),
-      likeCount: data['likeCount'] ?? 0,
       likedBy: List<String>.from(data['likedBy'] ?? []),
       address: data['address'],
       pathCoordinates: data['pathCoordinates']?.map<GeoPoint>(
@@ -899,7 +911,6 @@ class Route {
           isWellLit: isWellLit,
           hasLowTraffic: hasLowTraffic,
           imageUrls: imageUrls,
-          likeCount: likeCount,
           likedBy: likedBy,
           address: address ?? this.address,
           pathCoordinates: pathCoordinates ?? this.pathCoordinates,
@@ -956,7 +967,6 @@ class Route {
       isWellLit: isWellLit ?? this.isWellLit,
       hasLowTraffic: hasLowTraffic ?? this.hasLowTraffic,
       imageUrls: imageUrls ?? this.imageUrls,
-      likeCount: likeCount ?? this.likeCount,
       likedBy: likedBy ?? this.likedBy,
       address: address ?? this.address,
       pathCoordinates: pathCoordinates ?? this.pathCoordinates,
