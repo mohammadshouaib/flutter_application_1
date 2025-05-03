@@ -20,6 +20,7 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
   String _selectedTerrain = 'All';
   String? _currentUserId;
   bool _showMyRoutesOnly = false; // Add this line
+  final Map<String, bool> _expandedRouteStates = {};
   
 
   @override
@@ -63,69 +64,69 @@ class _RouteFeedPageState extends State<RouteFeedPage> {
           _buildUserRoutesFilter(),
           
           // StreamBuilder to fetch and display routes
-Expanded(
-  child: StreamBuilder<QuerySnapshot>(
-    stream: _buildCombinedRouteStream(),
-    builder: (context, snapshot) {
-      if (snapshot.hasError) {
-        return Center(child: Text('Error: ${snapshot.error}'));
-      }
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _buildCombinedRouteStream(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
 
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: CircularProgressIndicator());
-      }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-        return Center(
-          child: Text(
-            _showMyRoutesOnly 
-                ? 'You haven\'t created any routes yet'
-                : 'No routes found',
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Text(
+                      _showMyRoutesOnly 
+                          ? 'You haven\'t created any routes yet'
+                          : 'No routes found',
+                    ),
+                  );
+                }
+
+                // Convert Firestore docs to Route objects
+                final routes = snapshot.data!.docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return CustomRoute(
+                    id: doc.id,
+                    name: data['name'] ?? 'Unnamed Route',
+                    location: data['location'],
+                    creator: data['creator'] ?? 'Unknown',
+                    creatorId: data['creatorId'],
+                    distance: (data['distance'] ?? 0).toDouble(),
+                    difficulty: data['difficulty'] ?? 'Medium',
+                    terrain: data['terrain'] ?? 'Mixed',
+                    description: data['description'],
+                    userRatings: data['userRatings'],
+                    rating: (data['rating'] ?? 0).toDouble(),
+                    reviewCount: data['reviewCount'] ?? 0,
+                    safetyRating: (data['safetyRating'] ?? 0).toDouble(),
+                    isWellLit: data['isWellLit'] ?? false,
+                    hasLowTraffic: data['hasLowTraffic'] ?? false,
+                    imageUrls: List<String>.from(data['imageUrls'] ?? []),
+                    likedBy: List<String>.from(data['likedBy'] ?? []),
+                    address: data['address'],
+                    pathCoordinates: data['pathCoordinates']?.map<GeoPoint>(
+                      (point) => GeoPoint(point['latitude'], point['longitude'])),
+                    mapImageUrl: data['mapImageUrl']
+                  );
+                }).toList();
+
+                return ListView.builder(
+                  itemCount: routes.length,
+                  itemBuilder: (context, index) {
+                    final route = routes[index];
+                    return _buildRouteCard(
+                      route,
+                      showActions: _showMyRoutesOnly,
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        );
-      }
-
-      // Convert Firestore docs to Route objects
-      final routes = snapshot.data!.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return Route(
-          id: doc.id,
-          name: data['name'] ?? 'Unnamed Route',
-          location: data['location'],
-          creator: data['creator'] ?? 'Unknown',
-          creatorId: data['creatorId'],
-          distance: (data['distance'] ?? 0).toDouble(),
-          difficulty: data['difficulty'] ?? 'Medium',
-          terrain: data['terrain'] ?? 'Mixed',
-          description: data['description'],
-          userRatings: data['userRatings'],
-          rating: (data['rating'] ?? 0).toDouble(),
-          reviewCount: data['reviewCount'] ?? 0,
-          safetyRating: (data['safetyRating'] ?? 0).toDouble(),
-          isWellLit: data['isWellLit'] ?? false,
-          hasLowTraffic: data['hasLowTraffic'] ?? false,
-          imageUrls: List<String>.from(data['imageUrls'] ?? []),
-          likedBy: List<String>.from(data['likedBy'] ?? []),
-          address: data['address'],
-          pathCoordinates: data['pathCoordinates']?.map<GeoPoint>(
-            (point) => GeoPoint(point['latitude'], point['longitude'])),
-          mapImageUrl: data['mapImageUrl']
-        );
-      }).toList();
-
-      return ListView.builder(
-        itemCount: routes.length,
-        itemBuilder: (context, index) {
-          final route = routes[index];
-          return _buildRouteCard(
-            route,
-            showActions: _showMyRoutesOnly,
-          );
-        },
-      );
-    },
-  ),
-),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -144,24 +145,24 @@ Expanded(
   }
 
   // Add this helper method to your state class
-Stream<QuerySnapshot> _buildCombinedRouteStream() {
-  Query query = _firestore.collection('routes');
-  
-  // Apply creator filter if "My Routes" is enabled
-  if (_showMyRoutesOnly && _currentUserId != null) {
-    query = query.where('creatorId', isEqualTo: _currentUserId);
+  Stream<QuerySnapshot> _buildCombinedRouteStream() {
+    Query query = _firestore.collection('routes');
+    
+    // Apply creator filter if "My Routes" is enabled
+    if (_showMyRoutesOnly && _currentUserId != null) {
+      query = query.where('creatorId', isEqualTo: _currentUserId);
+    }
+    
+    // Apply terrain filter if not 'All'
+    if (_selectedTerrain != 'All') {
+      query = query.where('terrain', isEqualTo: _selectedTerrain);
+    }
+    
+    return query.snapshots();
   }
-  
-  // Apply terrain filter if not 'All'
-  if (_selectedTerrain != 'All') {
-    query = query.where('terrain', isEqualTo: _selectedTerrain);
-  }
-  
-  return query.snapshots();
-}
 
   // Add this new method for deleting routes
-  Future<void> _deleteRoute(Route route) async {
+  Future<void> _deleteRoute(CustomRoute route) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -194,7 +195,20 @@ Stream<QuerySnapshot> _buildCombinedRouteStream() {
     }
   }
 
-  void _openFullMap(Route route) {
+  void _editRoute(CustomRoute route) {
+    // Navigate to edit screen or show edit dialog
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UploadRoutePage(route: route,),
+      ),
+    ).then((_) {
+      // Refresh after editing if needed
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _openFullMap(CustomRoute route) {
   Navigator.push(
     context,
     MaterialPageRoute(
@@ -236,21 +250,21 @@ Stream<QuerySnapshot> _buildCombinedRouteStream() {
   );
 }
 
-void _launchNavigation(Route route) async {
-  final uri = Uri.parse(
-    'https://www.google.com/maps/dir/?api=1'
-    '&destination=${route.location!.latitude},${route.location!.longitude}'
-    '&travelmode=walking',
-  );
-  
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri);
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not launch navigation')),
+  void _launchNavigation(CustomRoute route) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&destination=${route.location!.latitude},${route.location!.longitude}'
+      '&travelmode=walking',
     );
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not launch navigation')),
+      );
+    }
   }
-}
 
   //Card Helper
   Widget _buildTerrainFilter() {
@@ -277,7 +291,7 @@ void _launchNavigation(Route route) async {
     );
   }
 
-  Widget _buildRouteCard(Route route, {bool showActions = false}) {
+  Widget _buildRouteCard(CustomRoute route, {bool showActions = false}) {
     final isLiked = _currentUserId != null && route.likedBy.contains(_currentUserId);
     final pageController = PageController(viewportFraction: 1);
     final showLocationDetails = _expandedRouteStates[route.id] ?? false;
@@ -389,9 +403,37 @@ void _launchNavigation(Route route) async {
                     ),
                   ),
                   if (showActions)
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteRoute(route),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert),
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editRoute(route);
+                        } else if (value == 'delete') {
+                          _deleteRoute(route);
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => [
+                        const PopupMenuItem<String>(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text('Edit'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Delete'),
+                            ],
+                          ),
+                        ),
+                      ],
                     )
                   else
                     Row(
@@ -698,46 +740,44 @@ void _launchNavigation(Route route) async {
   );
 }
 
-final Map<String, bool> _expandedRouteStates = {};
+  void _toggleLocationDetails(CustomRoute route) {
+    setState(() {
+      // Toggle the state for this specific route
+      _expandedRouteStates[route.id] = !(_expandedRouteStates[route.id] ?? false);
+    });
+  }
 
-void _toggleLocationDetails(Route route) {
-  setState(() {
-    // Toggle the state for this specific route
-    _expandedRouteStates[route.id] = !(_expandedRouteStates[route.id] ?? false);
-  });
-}
-
-void _showFullDescription(String description) {
-  showModalBottomSheet(
-    context: context,
-    builder: (context) => Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Description',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            description,
-            style: TextStyle(fontSize: 15, height: 1.5),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+  void _showFullDescription(String description) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Description',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              description,
+              style: TextStyle(fontSize: 15, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Color? _getDifficultyColor(String difficulty) {
     switch (difficulty.toLowerCase()) {
@@ -752,7 +792,7 @@ void _showFullDescription(String description) {
     }
   }
 
-  Future<void> _toggleLike(Route route) async {
+  Future<void> _toggleLike(CustomRoute route) async {
     if (_currentUserId == null) {
       // Show login prompt if user isn't authenticated
       ScaffoldMessenger.of(context).showSnackBar(
@@ -791,7 +831,7 @@ void _showFullDescription(String description) {
 }
 
 
- class Route {
+ class CustomRoute {
   final String id;
   final String name;
   final String creator;
@@ -817,7 +857,7 @@ void _showFullDescription(String description) {
 
   
 
-  const Route({
+  const CustomRoute({
     required this.id,
     required this.location,
     required this.address,
@@ -853,10 +893,10 @@ void _showFullDescription(String description) {
     return (userRatings![userId] as num?)?.toDouble();
   }
 
-  factory Route.fromFirestore(DocumentSnapshot doc) {
+  factory CustomRoute.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     
-    return Route(
+    return CustomRoute(
       id: doc.id,
       name: data['name'] ?? 'Unnamed Route',
       location: data['location'],
@@ -881,7 +921,7 @@ void _showFullDescription(String description) {
     );
   }
 
-  Future<Route> withCreatorProfile() async {
+  Future<CustomRoute> withCreatorProfile() async {
     if (creatorId == null) return this;
     
     try {
@@ -892,7 +932,7 @@ void _showFullDescription(String description) {
 
       if (creatorDoc.exists) {
         final creatorData = creatorDoc.data();
-        return Route(
+        return CustomRoute(
           id: id,
           name: name,
           creator: creator,
@@ -925,7 +965,7 @@ void _showFullDescription(String description) {
   }
 
   // Optional: Add a copyWith method for other modifications
-  Route copyWith({
+  CustomRoute copyWith({
     GeoPoint? location,
     String? address,
     List<GeoPoint>? pathCoordinates,
@@ -948,7 +988,7 @@ void _showFullDescription(String description) {
     int? likeCount,
     List<String>? likedBy,
   }) {
-    return Route(
+    return CustomRoute(
       id: id,
       name: name ?? this.name,
       creator: creator ?? this.creator,

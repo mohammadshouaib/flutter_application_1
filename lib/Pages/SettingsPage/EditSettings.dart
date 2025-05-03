@@ -5,19 +5,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-
-// Edit Profile Screen
 class EditProfileScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
   final String userBio;
+  final String userPhone;
+  final String userAddress;
   final String? profileImageUrl;
-  final Function(String, String, String, String?) onSave;
+  final Function(String, String, String, String, String, String?) onSave;
 
   const EditProfileScreen({
     required this.userName,
     required this.userEmail,
     required this.userBio,
+    required this.userPhone,
+    required this.userAddress,
     required this.profileImageUrl,
     required this.onSave,
   });
@@ -30,6 +32,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
   late final TextEditingController _bioController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _addressController;
   File? _selectedImage;
   String? _newImageUrl;
   final ImagePicker _picker = ImagePicker();
@@ -41,6 +45,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController = TextEditingController(text: widget.userName);
     _emailController = TextEditingController(text: widget.userEmail);
     _bioController = TextEditingController(text: widget.userBio);
+    _phoneController = TextEditingController(text: widget.userPhone);
+    _addressController = TextEditingController(text: widget.userAddress);
     _newImageUrl = widget.profileImageUrl;
   }
 
@@ -50,7 +56,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (image != null) {
         setState(() {
           _selectedImage = File(image.path);
-          _newImageUrl = null; // Clear URL when new local image is selected
+          _newImageUrl = null;
         });
       }
     } catch (e) {
@@ -68,7 +74,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      // Upload new image first if selected
+      // Upload new image if selected
       if (_selectedImage != null) {
         final ref = FirebaseStorage.instance
             .ref()
@@ -78,7 +84,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _newImageUrl = await ref.getDownloadURL();
       }
 
-      // Update Firestore
+      // Update Firestore with all fields
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -86,6 +92,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             'fullName': _nameController.text.trim(),
             'email': _emailController.text.trim(),
             'bio': _bioController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'address': _addressController.text.trim(),
             if (_newImageUrl != null) 'profileImageUrl': _newImageUrl,
             'updatedAt': FieldValue.serverTimestamp(),
           });
@@ -100,11 +108,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // Notify parent and close
       widget.onSave(
-        _nameController.text.trim(),
-        _emailController.text.trim(),
-        _bioController.text.trim(),
-        _newImageUrl,
-      );
+  _nameController.text.trim(),
+  _emailController.text.trim(),
+  _bioController.text.trim(),
+  _phoneController.text.trim(),
+  _addressController.text.trim(),
+  _newImageUrl,
+);
       
       if (mounted) {
         Navigator.pop(context);
@@ -131,7 +141,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       appBar: AppBar(
         title: const Text("Edit Profile"),
         backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
+        foregroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _saveChanges,
@@ -149,6 +159,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Profile Picture
             GestureDetector(
               onTap: _pickImage,
               child: Stack(
@@ -173,26 +184,61 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            
+            // Personal Information Section
+            const Text(
+              'Personal Information',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            
             TextFormField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: "Name",
+                labelText: "Full Name",
                 prefixIcon: Icon(Icons.person),
               ),
               validator: (value) =>
                   value?.isEmpty ?? true ? 'Please enter your name' : null,
             ),
             const SizedBox(height: 16),
+            
             TextFormField(
-            controller: _emailController,
-            enabled: false, // Makes the field completely uneditable and grayed out
-            decoration: const InputDecoration(
-              labelText: "Email",
-              prefixIcon: Icon(Icons.email),
+              controller: _emailController,
+              enabled: false,
+              decoration: const InputDecoration(
+                labelText: "Email",
+                prefixIcon: Icon(Icons.email),
+              ),
             ),
-          ),
-
             const SizedBox(height: 16),
+            
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: "Phone Number",
+                prefixIcon: Icon(Icons.phone),
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            TextFormField(
+              controller: _addressController,
+              decoration: const InputDecoration(
+                labelText: "Address",
+                prefixIcon: Icon(Icons.location_on),
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Bio Section
+            const Text(
+              'About Me',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            
             TextFormField(
               controller: _bioController,
               maxLines: 3,
@@ -203,8 +249,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            
+            // Save Button
             FilledButton(
               onPressed: _isSaving ? null : _saveChanges,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.orange,
+                minimumSize: const Size(double.infinity, 50),
+              ),
               child: _isSaving
                   ? const SizedBox(
                       width: 20,
@@ -237,6 +289,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _bioController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 }

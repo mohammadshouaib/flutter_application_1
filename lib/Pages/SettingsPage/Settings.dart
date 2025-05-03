@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/Login/Signup/forgotpassword.dart';
+import 'package:flutter_application_1/Login/Signup/resetpass.dart';
 import 'package:flutter_application_1/Login/Signup/signinorsignup.dart';
 import 'package:flutter_application_1/Pages/SettingsPage/EditSettings.dart';
 import 'package:flutter_application_1/Pages/SettingsPage/helpSupport.dart';
@@ -22,8 +23,19 @@ class _SettingsPageState extends State<SettingsPage> {
   String userName = "";
   String userEmail = "";
   String userBio = "";
+  String userPhone = "";
+  String userAddress = "";
   File? profileImage;
   String? profileImageUrl;
+
+  
+  double kmToMiles(double km) => km * 0.621371;
+  double milesToKm(double miles) => miles * 1.60934;
+
+  // Convert distance based on user preference
+  double convertDistance(double distance, String unit) {
+    return unit == 'mi' ? kmToMiles(distance) : distance;
+  }
 
   // App Settings
   bool isDarkMode = false;
@@ -52,12 +64,14 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() {
           userName = userData['fullName'] ?? authUser.displayName ?? 'No Name';
           userEmail = authUser.email ?? userData['email'] ?? 'No Email';
+           userPhone = userData['phone'] ?? 'No Phone';
+           userAddress = userData['address'] ?? 'No Address';
           userBio = userData['bio'] ?? 'No bio yet';
           profileImageUrl = userData['profileImageUrl'];
           
-          // Load settings
-          isDarkMode = userData['settings']?['darkMode'] ?? false;
-          voiceGuidance = userData['settings']?['voiceGuidance'] ?? true;
+          // // Load settings
+          // isDarkMode = userData['settings']?['darkMode'] ?? false;
+          // voiceGuidance = userData['settings']?['voiceGuidance'] ?? true;
           distanceUnit = userData['settings']?['distanceUnit'] ?? 'km';
         });
       }
@@ -151,23 +165,29 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 24),
 
           _buildSettingTile(
-          "Change Password", 
+          "Reset Password", 
           Icons.lock_outline, 
-          () { 
-            Navigator.push(
+          () async{ 
+            final userData = await _fetchUserData();
+            final authUser = FirebaseAuth.instance.currentUser;
+            
+            if (userData != null && authUser != null) {
+              userEmail = authUser.email ?? userData['email'] ?? 'No Email';
+              Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => ForgotPasswordScreen()),
+                                      builder: (context) => ResetPasswordScreen(email: userEmail)),
                                 );
+      }
           },
         ),
 
           // // App Preferences
           // _buildSectionHeader("Preferences"),
           
-          // _buildUnitSelector("Distance Unit", ["km", "mi"], distanceUnit, (value) {
-          //   _updateSetting('distanceUnit', value);
-          // }),
+          _buildUnitSelector("Distance Unit", ["km", "mi"], distanceUnit, (value) {
+            _updateSetting('distanceUnit', value);
+          }),
           const SizedBox(height: 24),
 
           // Safety Features
@@ -316,76 +336,179 @@ Future<void> _performLogout() async {
 }
 
   Widget _buildProfileSection() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+  return Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      side: BorderSide(color: Colors.grey.shade200),
+    ),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: _navigateToEditProfile,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Profile Picture with Edit Button
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundImage: profileImage != null
+                      ? FileImage(profileImage!)
+                      : (profileImageUrl != null
+                          ? NetworkImage(profileImageUrl!)
+                          : const NetworkImage(
+                              "https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg",
+                            )) as ImageProvider,
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.edit,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // User Info
+            Text(
+              userName,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              userEmail,
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              userBio,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 16),
+            
+            // Running Stats - Now with StreamBuilder
+            // In your widget build method:
+StreamBuilder<DocumentSnapshot>(
+  stream: FirebaseFirestore.instance
+      .collection('users')
+      .doc(FirebaseAuth.instance.currentUser?.uid)
+      .snapshots(),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const CircularProgressIndicator();
+    }
+    
+    if (!snapshot.hasData || !snapshot.data!.exists) {
+      return const Text('No distance data available');
+    }
+    
+    final userData = snapshot.data!.data() as Map<String, dynamic>;
+    final totalDistance = (userData['totalDistance'] ?? 0).toDouble();
+    final weeklyDistance = (userData['weeklyDistance'] ?? 0).toDouble();
+    final distanceUnit = userData['settings']?['distanceUnit'] ?? 'km';
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _navigateToEditProfile,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundImage: profileImage != null
-                        ? FileImage(profileImage!)
-                        : (profileImageUrl != null
-                            ? NetworkImage(profileImageUrl!)
-                            : const NetworkImage(
-                                "https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg",
-                              )) as ImageProvider,
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: const Icon(
-                      Icons.edit,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                userName,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                userEmail,
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                userBio,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade700),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.tonal(
-                onPressed: _navigateToEditProfile,
-                child: const Text("Edit Profile"),
-              ),
-            ],
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildDistanceStat(
+            context,
+            value: distanceUnit == 'mi' 
+                ? kmToMiles(totalDistance).toStringAsFixed(1)
+                : totalDistance.toStringAsFixed(1),
+            label: distanceUnit == 'mi' ? "Total Miles" : "Total KM",
+            icon: Icons.flag,
+            unit: distanceUnit,
           ),
-        ),
+          Container(
+            height: 40,
+            width: 1,
+            color: Colors.grey.shade300,
+          ),
+          _buildDistanceStat(
+            context,
+            value: distanceUnit == 'mi'
+                ? kmToMiles(weeklyDistance).toStringAsFixed(1)
+                : weeklyDistance.toStringAsFixed(1),
+            label: distanceUnit == 'mi' ? "Weekly Miles" : "Weekly KM",
+            icon: Icons.calendar_today,
+            unit: distanceUnit,
+          ),
+        ],
       ),
     );
-  }
+  },
+),
+            const SizedBox(height: 16),
+            
+            // Edit Profile Button
+            FilledButton.tonal(
+              onPressed: _navigateToEditProfile,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.orange.withOpacity(0.1),
+                foregroundColor: Colors.orange,
+              ),
+              child: const Text("Edit Profile"),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildDistanceStat(BuildContext context, {
+  required String value,
+  required String label,
+  required IconData icon,
+  required String unit,
+}) {
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.orange),
+          const SizedBox(width: 4),
+          Text(
+            '$value ${unit.toUpperCase()}',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 4),
+      Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.grey.shade600,
+            ),
+      ),
+    ],
+  );
+}
 
   Future<void> _updateSetting(String key, dynamic value) async {
     try {
@@ -406,6 +529,9 @@ Future<void> _performLogout() async {
             break;
           case 'voiceGuidance':
             voiceGuidance = value;
+            break;
+          case 'distanceUnit':
+            distanceUnit = value;
             break;
           // Add other cases as needed
         }
@@ -486,26 +612,30 @@ Future<void> _performLogout() async {
   }
 
   void _navigateToEditProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EditProfileScreen(
-  userName: userName,
-  userEmail: userEmail,
-  userBio: userBio,
-  profileImageUrl: profileImageUrl,  // Changed from profileImage to profileImageUrl
-  onSave: (name, email, bio, imageUrl) {  // Changed image to imageUrl
-    setState(() {
-      userName = name;
-      userEmail = email;
-      userBio = bio;
-      profileImageUrl = imageUrl;  // Now storing the URL instead of File
-    });
-  },
-),
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => EditProfileScreen(
+        userName: userName,
+        userEmail: userEmail,
+        userBio: userBio,
+        userPhone: userPhone,  // Make sure this is passed
+        userAddress: userAddress,  // Make sure this is passed
+        profileImageUrl: profileImageUrl,
+        onSave: (name, email, bio, phone, address, imageUrl) {  // Correct parameter order
+          setState(() {
+            userName = name;
+            userEmail = email;
+            userBio = bio;
+            userPhone = phone;
+            userAddress = address;
+            profileImageUrl = imageUrl;
+          });
+        },
       ),
-    );
-  }
+    ),
+  );
+}
 
   // Placeholder navigation methods
   void _navigateToEmergencyContacts() {}

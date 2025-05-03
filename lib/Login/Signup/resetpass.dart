@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/Login/Signup/signin.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  final String email; // Changed from controller to just the email string
+  final String email;
 
   const ResetPasswordScreen({super.key, required this.email});
 
@@ -15,10 +15,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
-  // At the top of your widget file
   final emailTextStyle = TextStyle(
     fontWeight: FontWeight.bold,
-    fontSize: 16, // Adjust as needed
+    fontSize: 16,
   );
   bool _isLoading = false;
   bool _emailSent = false;
@@ -66,7 +65,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-backgroundColor:  Color(0xFFFDF6EC),
+      backgroundColor: Color(0xFFFDF6EC),
+      appBar: AppBar(
+        automaticallyImplyLeading: true, // This enables the back button
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        title: const Text('Reset Password'),
+      ),
       body: LogoWithTitle(
         title: "Reset Password",
         children: [
@@ -76,7 +81,6 @@ backgroundColor:  Color(0xFFFDF6EC),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 8),
-            // In your build method
             Text(
               widget.email,
               style: Theme.of(context).textTheme.bodyLarge?.merge(emailTextStyle) ?? emailTextStyle,
@@ -96,8 +100,7 @@ backgroundColor:  Color(0xFFFDF6EC),
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
                       backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-
+                      foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 48),
                       shape: const StadiumBorder(),
                     ),
@@ -120,15 +123,14 @@ backgroundColor:  Color(0xFFFDF6EC),
             const SizedBox(height: 20),
             TextButton(
               onPressed: () => Navigator.popUntil(
-  context,
-  (route) => route is MaterialPageRoute && 
-             route.builder(context) is SignInScreen
-),
+                context,
+                (route) => route is MaterialPageRoute && 
+                       route.builder(context) is SignInScreen
+              ),
               child: const Text(
-  'Return to login',
-  style: TextStyle(color: Colors.orange),
-),
-
+                'Return to login',
+                style: TextStyle(color: Colors.orange),
+              ),
             ),
           ]
         ],
@@ -137,17 +139,17 @@ backgroundColor:  Color(0xFFFDF6EC),
   }
 }
 
-// Your existing LogoWithTitle widget remains the same
-
 class LogoWithTitle extends StatelessWidget {
   final String title, subText;
   final List<Widget> children;
 
-  const LogoWithTitle(
-      {super.key,
-      required this.title,
-      this.subText = '',
-      required this.children});
+  const LogoWithTitle({
+    super.key,
+    required this.title,
+    this.subText = '',
+    required this.children,
+  });
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -156,16 +158,13 @@ class LogoWithTitle extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
             children: [
-              SizedBox(height: constraints.maxHeight * 0.1),
+              SizedBox(height: constraints.maxHeight * 0.05), // Reduced space
               Image.asset(
-                        "assets/Logo.png",
-                        width: 140,
-                        height: 140,
-                      ),
-              SizedBox(
-                height: constraints.maxHeight * 0.1,
-                width: double.infinity,
+                "assets/Logo.png",
+                width: 140,
+                height: 140,
               ),
+              SizedBox(height: constraints.maxHeight * 0.05), // Reduced space
               Text(
                 title,
                 style: Theme.of(context)

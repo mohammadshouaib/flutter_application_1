@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/Pages/RoutePage/RouteRecommendationsPage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,7 +16,9 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
 
 class UploadRoutePage extends StatefulWidget {
-  const UploadRoutePage({super.key});
+  final CustomRoute? route; // Optional route parameter for editing
+
+  const UploadRoutePage({super.key, this.route});
 
   @override
   State<UploadRoutePage> createState() => _UploadRoutePageState();
@@ -31,19 +34,39 @@ class _UploadRoutePageState extends State<UploadRoutePage> {
   String? _selectedAddress;
 
   // Form fields
-  final _nameController = TextEditingController();
-  final _distanceController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  String _difficulty = 'Moderate';
-  String _terrain = 'Urban';
+  late final TextEditingController _nameController;
+  late final TextEditingController _distanceController;
+  late final TextEditingController _descriptionController;
+  late String _difficulty;
+  late String _terrain;
   bool _isWellLit = false;
   bool _hasLowTraffic = false;
   List<File> _selectedImages = [];
+  List<String> _existingImageUrls = []; // For editing existing images
   bool _isUploading = false;
   double? _uploadProgress;
 
   final List<String> _difficultyOptions = ['Easy', 'Moderate', 'Hard'];
   final List<String> _terrainOptions = ['Urban', 'Trail', 'Track', 'Mixed'];
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Initialize controllers with route data if editing
+    _nameController = TextEditingController(text: widget.route?.name ?? '');
+    _distanceController = TextEditingController(
+      text: widget.route?.distance?.toString() ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.route?.description ?? '');
+    _difficulty = widget.route?.difficulty ?? 'Moderate';
+    _terrain = widget.route?.terrain ?? 'Urban';
+    _isWellLit = widget.route?.isWellLit ?? false;
+    _hasLowTraffic = widget.route?.hasLowTraffic ?? false;
+    _selectedLocation = widget.route?.location;
+    _selectedAddress = widget.route?.address;
+    _existingImageUrls = widget.route?.imageUrls ?? [];
+  }
 
   @override
   void dispose() {
@@ -71,9 +94,9 @@ class _UploadRoutePageState extends State<UploadRoutePage> {
     }
   }
 
-  Future<void> _uploadRoute() async {
+  Future<void> _submitRoute() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedImages.isEmpty) {
+    if (_selectedImages.isEmpty && _existingImageUrls.isEmpty) {
       _showError('Please add at least one image');
       return;
     }
@@ -87,45 +110,47 @@ class _UploadRoutePageState extends State<UploadRoutePage> {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
-      // Upload images first
-      final imageUrls = await _uploadImages();
+      // Upload new images if any
+      final newImageUrls = await _uploadImages();
+      final allImageUrls = [..._existingImageUrls, ...newImageUrls];
 
-      // Save route data to Firestore
-      await _firestore.collection('routes').add({
-  'name': _nameController.text,
-  'creator': user.displayName ?? 'Anonymous',
-  'creatorId': user.uid,
-  'distance': double.parse(_distanceController.text),
-  'difficulty': _difficulty,
-  'terrain': _terrain,
-  'description': _descriptionController.text,
-  'isWellLit': _isWellLit,
-  'hasLowTraffic': _hasLowTraffic,
-  'imageUrls': imageUrls,
-  'likeCount': 0,
-  'likedBy': [],
-  'createdAt': FieldValue.serverTimestamp(),
-  'rating': 0,
-  'reviewCount': 0,
-  'safetyRating': 0,
-  // Location-related fields
-  'location': _selectedLocation != null 
-      ? GeoPoint(
-          _selectedLocation!.latitude,
-          _selectedLocation!.longitude,
-        )
-      : null,
-  'address': _selectedAddress,
-  // 'pathCoordinates': _pathCoordinates?.map((point) => {
-  //       'latitude': point.latitude,
-  //       'longitude': point.longitude,
-  //     }).toList(),
-  // 'mapImageUrl': _mapImageUrl, // If you're generating static map images
-});
+      // Prepare route data
+      final routeData = {
+        'name': _nameController.text,
+        'creator': user.displayName ?? 'Anonymous',
+        'creatorId': user.uid,
+        'distance': double.parse(_distanceController.text),
+        'difficulty': _difficulty,
+        'terrain': _terrain,
+        'description': _descriptionController.text,
+        'isWellLit': _isWellLit,
+        'hasLowTraffic': _hasLowTraffic,
+        'imageUrls': allImageUrls,
+        'location': _selectedLocation,
+        'address': _selectedAddress,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Update or create route
+      if (widget.route != null) {
+        // Editing existing route
+        await _firestore.collection('routes').doc(widget.route!.id).update(routeData);
+      } else {
+        // Creating new route
+        routeData.addAll({
+          'createdAt': FieldValue.serverTimestamp(),
+          'likeCount': 0,
+          'likedBy': [],
+          'rating': 0,
+          'reviewCount': 0,
+          'safetyRating': 0,
+        });
+        await _firestore.collection('routes').add(routeData);
+      }
 
       Navigator.pop(context, true); // Return success
     } catch (e) {
-      _showError('Failed to upload route: ${e.toString()}');
+      _showError('Failed to ${widget.route != null ? 'update' : 'upload'} route: ${e.toString()}');
     } finally {
       setState(() {
         _isUploading = false;
@@ -163,6 +188,15 @@ class _UploadRoutePageState extends State<UploadRoutePage> {
     return imageUrls;
   }
 
+  void _removeImage(int index, bool isExisting) {
+    setState(() {
+      if (isExisting) {
+        _existingImageUrls.removeAt(index);
+      } else {
+        _selectedImages.removeAt(index);
+      }
+    });
+  }
   Future<void> _pickLocationOnMap() async {
   final LocationResult? result = await showDialog(
     context: context,
@@ -213,10 +247,10 @@ Future<void> _getCurrentLocation() async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Upload New Route'),
+        title: Text(widget.route != null ? 'Edit Route' : 'Upload New Route'),
         centerTitle: true,
         backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
+        foregroundColor: Colors.white,
         actions: [
           if (_isUploading)
             Padding(
@@ -365,64 +399,64 @@ Future<void> _getCurrentLocation() async {
               ),
               const SizedBox(height: 24),
               const Text(
-      'Route Location',
-      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-    ),
-    const SizedBox(height: 10),
-    
-    // Current location display
-    if (_selectedLocation != null)
-      Column(
-        children: [
-          Text(
-            _selectedAddress ?? 'Selected Location',
-            style: const TextStyle(fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 150,
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(
-                  _selectedLocation!.latitude,
-                  _selectedLocation!.longitude,
-                ),
-                zoom: 14,
-              ),
-              markers: {
-                Marker(
-                  markerId: const MarkerId('selectedLocation'),
-                  position: LatLng(
-                    _selectedLocation!.latitude,
-                    _selectedLocation!.longitude,
+                    'Route Location',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                ),
-              },
-            ),
-          ),
-        ],
-      ),
-    
-    // Location selection buttons
-    Row(
-  children: [
-    Expanded( // Each button takes equal space
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.map),
-        label: const Text('Pick on Map'),
-        onPressed: _pickLocationOnMap,
-      ),
-    ),
-    const SizedBox(width: 10), // Add some spacing
-    Expanded( // Each button takes equal space
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.my_location),
-        label: const Text('Use Current Location'),
-        onPressed: _getCurrentLocation,
-      ),
-    ),
-  ],
-),
+                  const SizedBox(height: 10),
+                  
+                  // Current location display
+                  if (_selectedLocation != null)
+                    Column(
+                      children: [
+                        Text(
+                          _selectedAddress ?? 'Selected Location',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 150,
+                          child: GoogleMap(
+                            initialCameraPosition: CameraPosition(
+                              target: LatLng(
+                                _selectedLocation!.latitude,
+                                _selectedLocation!.longitude,
+                              ),
+                              zoom: 14,
+                            ),
+                            markers: {
+                              Marker(
+                                markerId: const MarkerId('selectedLocation'),
+                                position: LatLng(
+                                  _selectedLocation!.latitude,
+                                  _selectedLocation!.longitude,
+                                ),
+                              ),
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  
+                  // Location selection buttons
+                  Row(
+                children: [
+                  Expanded( // Each button takes equal space
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.map),
+                      label: const Text('Pick on Map'),
+                      onPressed: _pickLocationOnMap,
+                    ),
+                  ),
+                  const SizedBox(width: 10), // Add some spacing
+                  Expanded( // Each button takes equal space
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.my_location),
+                      label: const Text('Use Current Location'),
+                      onPressed: _getCurrentLocation,
+                    ),
+                  ),
+                ],
+              ),
     
               const SizedBox(height: 20),
 
@@ -436,7 +470,54 @@ Future<void> _getCurrentLocation() async {
               const SizedBox(height: 12),
 
               // Selected Images Grid
-              if (_selectedImages.isNotEmpty)
+              // if (_selectedImages.isNotEmpty)
+              //   GridView.builder(
+              //     shrinkWrap: true,
+              //     physics: const NeverScrollableScrollPhysics(),
+              //     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              //       crossAxisCount: 3,
+              //       crossAxisSpacing: 8,
+              //       mainAxisSpacing: 8,
+              //     ),
+              //     itemCount: _selectedImages.length,
+              //     itemBuilder: (context, index) {
+              //       return Stack(
+              //         children: [
+              //           Image.file(
+              //             _selectedImages[index],
+              //             fit: BoxFit.cover,
+              //             width: double.infinity,
+              //             height: double.infinity,
+              //           ),
+              //           Positioned(
+              //             top: 4,
+              //             right: 4,
+              //             child: GestureDetector(
+              //               onTap: () {
+              //                 setState(() {
+              //                   _selectedImages.removeAt(index);
+              //                 });
+              //               },
+              //               child: Container(
+              //                 decoration: const BoxDecoration(
+              //                   shape: BoxShape.circle,
+              //                   color: Colors.black54,
+              //                 ),
+              //                 child: const Icon(
+              //                   Icons.close,
+              //                   size: 20,
+              //                   color: Colors.white,
+              //                 ),
+              //               ),
+              //             ),
+              //           ),
+              //         ],
+              //       );
+              //     },
+              //   ),
+
+                 // Combined images display
+              if (_existingImageUrls.isNotEmpty || _selectedImages.isNotEmpty)
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -445,25 +526,29 @@ Future<void> _getCurrentLocation() async {
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
                   ),
-                  itemCount: _selectedImages.length,
+                  itemCount: _existingImageUrls.length + _selectedImages.length,
                   itemBuilder: (context, index) {
+                    final isExisting = index < _existingImageUrls.length;
                     return Stack(
                       children: [
-                        Image.file(
-                          _selectedImages[index],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
+                        isExisting
+                            ? Image.network(
+                                _existingImageUrls[index],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              )
+                            : Image.file(
+                                _selectedImages[index - _existingImageUrls.length],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
                         Positioned(
                           top: 4,
                           right: 4,
                           child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedImages.removeAt(index);
-                              });
-                            },
+                            onTap: () => _removeImage(index, isExisting),
                             child: Container(
                               decoration: const BoxDecoration(
                                 shape: BoxShape.circle,
@@ -496,7 +581,7 @@ Future<void> _getCurrentLocation() async {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _isUploading ? null : _uploadRoute,
+                  onPressed: _isUploading ? null : _submitRoute,
                   child: _isUploading
                       ? const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -509,10 +594,10 @@ Future<void> _getCurrentLocation() async {
                               ),
                             ),
                             SizedBox(width: 8),
-                            Text('Uploading...'),
+                            Text('Saving...'),
                           ],
                         )
-                      : const Text('Upload Route'),
+                      : Text(widget.route != null ? 'Save Changes' : 'Upload Route'),
                 ),
               ),
             ],
@@ -521,6 +606,30 @@ Future<void> _getCurrentLocation() async {
       ),
     );
   }
+}
+
+extension on Route? {
+  get name => null;
+  
+  get distance => null;
+  
+  get description => null;
+  
+  get difficulty => null;
+  
+  String? get id => null;
+  
+  get terrain => null;
+  
+  get isWellLit => null;
+  
+  get hasLowTraffic => null;
+  
+  GeoPoint? get location => null;
+  
+  String? get address => null;
+  
+  get imageUrls => null;
 }
 
 class LocationResult {
